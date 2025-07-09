@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="th" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>สรุปรายเดือน | CardWise</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Kanit', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+  <div id="loadingOverlay" class="fixed inset-0 bg-white dark:bg-gray-900 bg-opacity-90 flex flex-col items-center justify-center z-50">
+    <div class="animate-spin h-12 w-12 rounded-full border-4 border-t-[#4CAF50] border-gray-300 mb-4"></div>
+    <p class="text-gray-700 dark:text-gray-200 text-lg font-medium">กำลังโหลดข้อมูล...</p>
+  </div>
+
+  <nav class="bg-white dark:bg-gray-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center">
+    <div class="flex items-center space-x-3">
+      <h1 class="text-2xl font-extrabold text-[#1D3557] dark:text-white">Card<span class="text-[#4CAF50]">Wise</span></h1>
+    </div>
+    <div class="mt-2 sm:mt-0 flex flex-wrap gap-3 text-sm font-medium items-center">
+      <a href="landing.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">หน้าหลัก</a>
+      <a href="main.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">บันทึกรายจ่าย</a>
+      <a href="summary.html" class="text-white bg-[#4CAF50] px-4 py-2 rounded-full transition shadow">ดูรายงาน</a>
+      <a href="manage.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">หมวดหมู่/บัตร</a>
+      <button onclick="logout()" class="text-red-600 dark:text-red-400 hover:text-white hover:bg-red-500 px-4 py-2 rounded-full transition">ออกจากระบบ</button>
+      <button onclick="toggleDarkMode()" class="text-sm underline text-gray-600 dark:text-gray-300 ml-2" id="themeLabel">เปิดโหมดกลางคืน</button>
+    </div>
+  </nav>
+
+  <div class="max-w-6xl mx-auto mt-10 px-4 pb-10">
+    <h1 class="text-3xl font-bold text-center text-[#1D3557] dark:text-white mb-8">📊 สรุปรายเดือน</h1>
+
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-2xl p-6 mb-8">
+      <label class="block mb-2 text-gray-600 dark:text-gray-300 font-medium">เลือกเดือนที่ต้องการดูรายงาน</label>
+      <select id="monthSelect" class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] bg-white dark:bg-gray-700 text-gray-700 dark:text-white">
+      </select>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="bg-white dark:bg-gray-800 shadow-md rounded-2xl p-6">
+        <h2 class="text-lg font-semibold text-center text-gray-800 dark:text-gray-200 mb-4">รายจ่ายแยกตามหมวดหมู่</h2>
+        <canvas id="pieChartCategory" class="mb-4"></canvas>
+        <p id="totalAmount" class="text-center font-bold text-[#4CAF50] text-lg"></p>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 shadow-md rounded-2xl p-6">
+        <h2 class="text-lg font-semibold text-center text-gray-800 dark:text-gray-200 mb-4">สถิติการใช้บัตร</h2>
+        <canvas id="pieChartCard" class="mb-4"></canvas>
+        <p id="totalCardAmount" class="text-center font-bold text-[#4CAF50] text-lg"></p>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-2xl p-6">
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 text-center">รายละเอียดรายการ</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left border border-gray-200 rounded-xl overflow-hidden">
+          <thead>
+            <tr class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold">
+              <th class="p-3 border cursor-pointer" onclick="sortTable(0)">📅 วันที่</th>
+              <th class="p-3 border cursor-pointer" onclick="sortTable(1)">💰 จำนวนเงิน</th>
+              <th class="p-3 border cursor-pointer" onclick="sortTable(2)">💳 บัตร</th>
+              <th class="p-3 border cursor-pointer" onclick="sortTable(3)">📁 หมวด</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody" class="text-gray-800 dark:text-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sessionKey = 'userSession';
+    if (!localStorage.getItem(sessionKey)) {
+      window.location.href = 'login.html';
+    }
+
+    const currentUser = JSON.parse(localStorage.getItem(sessionKey));
+    console.log('เข้าสู่ระบบในชื่อ:', currentUser.username);
+
+    function logout() {
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      html.classList.toggle('dark');
+      const isNowDark = html.classList.contains('dark');
+      localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+      document.getElementById('themeLabel').textContent = isNowDark ? 'ปิดโหมดกลางคืน' : 'เปิดโหมดกลางคืน';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const isDark = localStorage.getItem('theme') === 'dark';
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeLabel').textContent = 'ปิดโหมดกลางคืน';
+      }
+    });
+  </script>
+  <script>
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
+    let pie1, pie2;
+
+    async function fetchExpenses() {
+      const res = await fetch(SHEET_URL);
+      return await res.json();
+    }
+
+    function groupByMonth(data) {
+      const grouped = {};
+      data.forEach(item => {
+        const date = new Date(item.date);
+        const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        if (!grouped[monthKey]) grouped[monthKey] = [];
+        grouped[monthKey].push(item);
+      });
+      return grouped;
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('summaryBody');
+      tbody.innerHTML = '';
+      data.forEach(item => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="p-2 border">${new Date(item.date).toLocaleDateString()}</td>
+            <td class="p-2 border">${item.amount}</td>
+            <td class="p-2 border">${item.card}</td>
+            <td class="p-2 border">${item.category}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderCharts(data) {
+      const categoryData = {}, cardData = {};
+      let total = 0;
+      data.forEach(item => {
+        const amt = parseFloat(item.amount);
+        total += amt;
+        categoryData[item.category] = (categoryData[item.category] || 0) + amt;
+        cardData[item.card] = (cardData[item.card] || 0) + amt;
+      });
+
+      document.getElementById('totalAmount').textContent = `ยอดรวม: ${total.toLocaleString()} บาท`;
+      document.getElementById('totalCardAmount').textContent = `ยอดรวม: ${Object.values(cardData).reduce((a, b) => a + b, 0).toLocaleString()} บาท`;
+
+      if (pie1) pie1.destroy();
+      pie1 = new Chart(document.getElementById('pieChartCategory'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(categoryData),
+          datasets: [{
+            data: Object.values(categoryData),
+            backgroundColor: ['#f87171', '#60a5fa', '#34d399', '#fbbf24', '#c084fc']
+          }]
+        }
+      });
+
+      if (pie2) pie2.destroy();
+      pie2 = new Chart(document.getElementById('pieChartCard'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(cardData),
+          datasets: [{
+            data: Object.values(cardData),
+            backgroundColor: ['#fcd34d', '#818cf8', '#f472b6', '#4ade80', '#38bdf8']
+          }]
+        }
+      });
+    }
+
+    function sortTable(col) {
+      const tbody = document.getElementById("summaryBody");
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+      const sorted = rows.sort((a, b) => {
+        const aText = a.children[col].textContent;
+        const bText = b.children[col].textContent;
+        return isNaN(aText) ? aText.localeCompare(bText) : bText - aText;
+      });
+      tbody.innerHTML = '';
+      sorted.forEach(row => tbody.appendChild(row));
+    }
+
+    (async () => {
+      const data = await fetchExpenses();
+      const grouped = groupByMonth(data);
+      const select = document.getElementById('monthSelect');
+
+      Object.keys(grouped).forEach(month => {
+        const option = document.createElement('option');
+        option.value = month;
+        option.textContent = formatThaiMonth(month);
+        select.appendChild(option);
+      });
+
+      select.addEventListener('change', () => {
+        const selectedData = grouped[select.value];
+        renderTable(selectedData);
+        renderCharts(selectedData);
+        document.getElementById('loadingOverlay').classList.add('hidden');
+      });
+
+      const firstMonth = Object.keys(grouped)[0];
+      if (firstMonth) {
+        select.value = firstMonth;
+        renderTable(grouped[firstMonth]);
+        renderCharts(grouped[firstMonth]);
+        document.getElementById('loadingOverlay').classList.add('hidden');
+      }
+    })();
+
+    function formatThaiMonth(ym) {
+      const [year, month] = ym.split('-');
+      const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+      return `${thaiMonths[parseInt(month) - 1]} ${parseInt(year) + 543}`;
+    }
+  </script>
+</body>
+</html>

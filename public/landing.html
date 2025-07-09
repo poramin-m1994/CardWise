@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="th" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>หน้าแรก | CardWise</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Kanit', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col">
+
+  <!-- Navigation Bar -->
+  <nav class="bg-white dark:bg-gray-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center">
+    <!-- Logo & Brand -->
+    <div class="flex items-center space-x-3">
+      <h1 class="text-2xl font-extrabold text-[#1D3557] dark:text-white">Card<span class="text-[#4CAF50]">Wise</span></h1>
+    </div>
+
+    <!-- Navigation Links -->
+    <div class="mt-2 sm:mt-0 flex flex-wrap gap-3 text-sm font-medium items-center">
+      <a href="landing.html" class="text-white bg-[#4CAF50] px-4 py-2 rounded-full transition shadow">หน้าหลัก</a>
+      <a href="main.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">บันทึกรายจ่าย</a>
+      <a href="summary.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">ดูรายงาน</a>
+      <a href="manage.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">หมวดหมู่/บัตร</a>
+      <button onclick="logout()" class="text-red-600 dark:text-red-400 hover:text-white hover:bg-red-500 px-4 py-2 rounded-full transition">ออกจากระบบ</button>
+      <button onclick="toggleDarkMode()" class="text-sm underline text-gray-600 dark:text-gray-300 ml-2" id="themeLabel">เปิดโหมดกลางคืน</button>
+    </div>
+  </nav>
+
+  <!-- Dashboard -->
+  <main class="flex-grow flex flex-col items-center justify-center p-6">
+    <div class="text-center mb-10">
+      <h2 class="text-2xl font-bold text-[#1D3557] dark:text-white mb-2">ยินดีต้อนรับสู่ CardWise 🎉</h2>
+      <p class="text-gray-600 dark:text-gray-300">กรุณาเลือกเมนูที่คุณต้องการใช้งาน</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl w-full">
+      <!-- บันทึกรายจ่าย -->
+      <a href="main.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
+        <div class="text-5xl mb-4 bg-[#1D3557] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">📝</div>
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">บันทึกรายจ่าย</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-300">เพิ่มรายการค่าใช้จ่ายของคุณ</p>
+      </a>
+
+      <!-- ดูรายงาน -->
+      <a href="summary.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
+        <div class="text-5xl mb-4 bg-[#4CAF50] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">📊</div>
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">ดูรายงานสรุป</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-300">ดูกราฟและสถิติรายจ่ายประจำเดือน</p>
+      </a>
+
+      <!-- จัดการหมวดหมู่/บัตร -->
+      <a href="manage.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
+        <div class="text-5xl mb-4 bg-[#FFC107] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">💳</div>
+        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">จัดการหมวดหมู่/บัตร</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-300">เพิ่ม ลบ หรือจัดการรายการที่ใช้ได้</p>
+      </a>
+    </div>
+  </main>
+
+  <script>
+    const sessionKey = 'userSession';
+    if (!localStorage.getItem(sessionKey)) {
+      window.location.href = 'login.html';
+    }
+
+    function logout() {
+      localStorage.removeItem(sessionKey);
+      window.location.href = 'login.html';
+    }
+
+    // Dark mode loader
+    const isDark = localStorage.getItem('theme') === 'dark';
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.getElementById('themeLabel').textContent = 'ปิดโหมดกลางคืน';
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      html.classList.toggle('dark');
+      const isNowDark = html.classList.contains('dark');
+      localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+      document.getElementById('themeLabel').textContent = isNowDark ? 'ปิดโหมดกลางคืน' : 'เปิดโหมดกลางคืน';
+    }
+  </script>
+</body>
+</html>

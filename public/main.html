@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="th" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>บันทึกรายจ่าย | CardWise</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Kanit', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen">
+
+  <!-- Navigation Bar -->
+  <nav class="bg-white dark:bg-gray-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center">
+    <!-- Logo & Brand -->
+    <div class="flex items-center space-x-3">
+      <h1 class="text-2xl font-extrabold text-[#1D3557] dark:text-white">Card<span class="text-[#4CAF50]">Wise</span></h1>
+    </div>
+
+    <!-- Navigation Links -->
+    <div class="mt-2 sm:mt-0 flex flex-wrap gap-3 text-sm font-medium items-center">
+      <a href="landing.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">หน้าหลัก</a>
+      <a href="main.html" class="text-white bg-[#4CAF50] px-4 py-2 rounded-full transition shadow">บันทึกรายจ่าย</a>
+      <a href="summary.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">ดูรายงาน</a>
+      <a href="manage.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">หมวดหมู่/บัตร</a>
+      <button onclick="logout()" class="text-red-600 dark:text-red-400 hover:text-white hover:bg-red-500 px-4 py-2 rounded-full transition">ออกจากระบบ</button>
+      <button onclick="toggleDarkMode()" class="text-sm underline text-gray-600 dark:text-gray-300 ml-2" id="themeLabel">เปิดโหมดกลางคืน</button>
+    </div>
+  </nav>
+
+  <!-- Loading overlay -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-white dark:bg-gray-900 bg-opacity-90 flex flex-col items-center justify-center z-50">
+    <div class="animate-spin h-12 w-12 rounded-full border-4 border-t-[#4CAF50] border-gray-300 mb-4"></div>
+    <p class="text-gray-700 dark:text-gray-200 text-lg font-medium">กำลังโหลดข้อมูล...</p>
+  </div>
+
+  <!-- ฟอร์มบันทึกรายจ่าย -->
+  <div id="mainFormContainer" class="max-w-xl mx-auto mt-12 p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg hidden">
+    <div class="text-center mb-6">
+      <div class="text-5xl mb-2">💸</div>
+      <h1 class="text-2xl font-bold text-[#1D3557] dark:text-white">บันทึกรายจ่าย</h1>
+      <p class="text-gray-500 dark:text-gray-300 text-sm">กรอกข้อมูลด้านล่างเพื่อเพิ่มรายการของคุณ</p>
+    </div>
+
+    <form id="expenseForm" class="space-y-5">
+      <div>
+        <label for="dateInput" class="block text-gray-600 dark:text-gray-300 mb-1">วันที่</label>
+        <input type="text" id="dateInput" placeholder="DD/MM/YYYY"
+          class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] dark:bg-gray-700 dark:text-white" required />
+      </div>
+      <div>
+        <label class="block text-gray-600 dark:text-gray-300 mb-1">จำนวนเงิน</label>
+        <input type="number" name="amount" placeholder="เช่น 350.00"
+          class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] dark:bg-gray-700 dark:text-white" required />
+      </div>
+      <div>
+        <label class="block text-gray-600 dark:text-gray-300 mb-1">เลือกบัตรที่ใช้จ่าย</label>
+        <select name="card"
+          class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] dark:bg-gray-700 dark:text-white" required>
+          <option value="">-- เลือกบัตร --</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-gray-600 dark:text-gray-300 mb-1">เลือกหมวดหมู่</label>
+        <select name="category"
+          class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] dark:bg-gray-700 dark:text-white" required>
+          <option value="">-- เลือกหมวดหมู่ --</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-gray-600 dark:text-gray-300 mb-1">หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+        <textarea name="note" rows="2" placeholder="ตัวอย่าง: ค่าอาหาร, ค่าของขวัญ"
+          class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] dark:bg-gray-700 dark:text-white"></textarea>
+      </div>
+      <button type="submit"
+        class="w-full bg-[#4CAF50] hover:bg-green-600 text-white py-3 rounded-xl text-lg font-semibold transition">
+        ✅ บันทึกรายจ่าย
+      </button>
+    </form>
+  </div>
+
+  <script>
+    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
+
+    async function fetchList(sheetName) {
+      const res = await fetch(`${SHEET_URL}?sheet=${sheetName}`);
+      return await res.json();
+    }
+
+    async function populateDropdowns() {
+      const cards = await fetchList("Cards");
+      const categories = await fetchList("Categories");
+
+      const cardSelect = document.querySelector('select[name="card"]');
+      const categorySelect = document.querySelector('select[name="category"]');
+
+      cards.forEach(card => {
+        const option = document.createElement("option");
+        option.value = card.name;
+        option.textContent = card.name;
+        cardSelect.appendChild(option);
+      });
+
+      categories.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat.name;
+        option.textContent = cat.name;
+        categorySelect.appendChild(option);
+      });
+
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      document.getElementById('mainFormContainer').classList.remove('hidden');
+    }
+
+    document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const loading = document.getElementById('loadingOverlay');
+      loading.classList.remove('hidden');
+
+      const dateInput = document.getElementById('dateInput');
+      const [day, month, year] = dateInput.value.split('/');
+      const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
+      const formData = new FormData(e.target);
+      const data = {
+        date: formattedDate,
+        amount: formData.get('amount'),
+        card: formData.get('card'),
+        category: formData.get('category'),
+        note: formData.get('note')
+      };
+
+      await fetch(SHEET_URL, {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+
+      alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
+      e.target.reset();
+      loading.classList.add('hidden');
+    });
+
+    const sessionKey = 'userSession';
+    if (!localStorage.getItem(sessionKey)) {
+      window.location.href = 'login.html';
+    }
+
+    const currentUser = JSON.parse(localStorage.getItem(sessionKey));
+    console.log('เข้าสู่ระบบในชื่อ:', currentUser.username);
+
+    function logout() {
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      populateDropdowns();
+
+      const dateInput = document.getElementById('dateInput');
+      dateInput.addEventListener('focus', () => dateInput.type = 'date');
+      dateInput.addEventListener('blur', () => dateInput.type = 'text');
+      dateInput.addEventListener('change', () => {
+        const formatted = dayjs(dateInput.value).format('DD/MM/YYYY');
+        dateInput.value = formatted;
+      });
+
+      const isDark = localStorage.getItem('theme') === 'dark';
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeLabel').textContent = 'ปิดโหมดกลางคืน';
+      }
+    });
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      html.classList.toggle('dark');
+      const isNowDark = html.classList.contains('dark');
+      localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+      document.getElementById('themeLabel').textContent = isNowDark ? 'ปิดโหมดกลางคืน' : 'เปิดโหมดกลางคืน';
+    }
+  </script>
+</body>
+</html>

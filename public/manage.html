@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="th" class="">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>จัดการหมวดหมู่ & บัตร | CardWise</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Kanit', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen">
+
+  <!-- Navigation Bar -->
+  <nav class="bg-white dark:bg-gray-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center">
+    <div class="flex items-center space-x-3">
+      <h1 class="text-2xl font-extrabold text-[#1D3557] dark:text-white">Card<span class="text-[#4CAF50]">Wise</span></h1>
+    </div>
+    <div class="mt-2 sm:mt-0 flex flex-wrap gap-3 text-sm font-medium items-center">
+      <a href="landing.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">หน้าหลัก</a>
+      <a href="main.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">บันทึกรายจ่าย</a>
+      <a href="summary.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">ดูรายงาน</a>
+      <a href="manage.html" class="text-white bg-[#4CAF50] px-4 py-2 rounded-full transition shadow">หมวดหมู่/บัตร</a>
+      <button onclick="logout()" class="text-red-600 dark:text-red-400 hover:text-white hover:bg-red-500 px-4 py-2 rounded-full transition">ออกจากระบบ</button>
+      <button onclick="toggleDarkMode()" class="text-sm underline text-gray-600 dark:text-gray-300 ml-2" id="themeLabel">เปิดโหมดกลางคืน</button>
+    </div>
+  </nav>
+
+  <!-- Loading Screen -->
+  <div id="loadingScreen" class="fixed inset-0 bg-white dark:bg-gray-900 bg-opacity-90 flex flex-col items-center justify-center z-50">
+    <div class="animate-spin h-12 w-12 rounded-full border-4 border-t-[#4CAF50] border-gray-300 mb-4"></div>
+    <p class="text-gray-700 dark:text-gray-200 text-lg font-medium">กำลังโหลดข้อมูล...</p>
+  </div>
+
+  <!-- Main Content -->
+  <div id="mainContent" class="max-w-4xl mx-auto mt-10 p-6 bg-white dark:bg-gray-800 rounded-xl shadow hidden">
+    <h1 class="text-2xl font-bold text-center text-[#1D3557] dark:text-white mb-8">จัดการหมวดหมู่และบัตร</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- หมวดหมู่ -->
+      <section>
+        <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">หมวดหมู่</h2>
+        <div class="flex gap-2 mb-4">
+          <input id="newCategory" class="flex-1 border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4CAF50] bg-white dark:bg-gray-700 text-gray-700 dark:text-white" placeholder="เพิ่มหมวดหมู่ใหม่" />
+          <button onclick="addItem('category')" class="bg-[#4CAF50] hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">เพิ่ม</button>
+        </div>
+        <ul id="categoryList" class="space-y-2 text-sm"></ul>
+      </section>
+
+      <!-- บัตร -->
+      <section>
+        <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">บัตร</h2>
+        <div class="flex gap-2 mb-4">
+          <input id="newCard" class="flex-1 border border-gray-300 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4CAF50] bg-white dark:bg-gray-700 text-gray-700 dark:text-white" placeholder="เพิ่มชื่อบัตรใหม่" />
+          <button onclick="addItem('card')" class="bg-[#4CAF50] hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">เพิ่ม</button>
+        </div>
+        <ul id="cardList" class="space-y-2 text-sm"></ul>
+      </section>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    const URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
+
+    async function fetchList(sheetName) {
+      const res = await fetch(`${URL}?sheet=${sheetName}`);
+      return await res.json();
+    }
+
+    async function renderLists() {
+      const categories = await fetchList("Categories");
+      const cards = await fetchList("Cards");
+
+      document.getElementById('categoryList').innerHTML = categories.map(c =>
+        `<li class="flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-md">
+          <span>${c.name}</span>
+          <button onclick="deleteItem('category','${c.name}')" class="text-red-600 dark:text-red-400 hover:underline text-sm">ลบ</button>
+        </li>`).join('');
+
+      document.getElementById('cardList').innerHTML = cards.map(c =>
+        `<li class="flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-md">
+          <span>${c.name}</span>
+          <button onclick="deleteItem('card','${c.name}')" class="text-red-600 dark:text-red-400 hover:underline text-sm">ลบ</button>
+        </li>`).join('');
+
+      document.getElementById('loadingScreen').style.display = 'none';
+      document.getElementById('mainContent').classList.remove('hidden');
+    }
+
+    async function addItem(type) {
+      const inputId = type === 'category' ? 'newCategory' : 'newCard';
+      const name = document.getElementById(inputId).value.trim();
+      if (!name) return alert('กรุณากรอกชื่อ');
+
+      document.getElementById('loadingScreen').style.display = 'flex';
+      try {
+        await fetch(URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'add',
+            sheet: type === 'category' ? 'Categories' : 'Cards',
+            name
+          })
+        });
+        document.getElementById(inputId).value = '';
+        alert('เพิ่มข้อมูลเรียบร้อยแล้ว');
+      } catch (error) {
+        alert('เกิดข้อผิดพลาดในการเพิ่มข้อมูล');
+      }
+      document.getElementById('loadingScreen').style.display = 'none';
+      renderLists();
+    }
+
+    async function deleteItem(type, name) {
+      if (!confirm(`ลบ "${name}" ใช่ไหม?`)) return;
+      document.getElementById('loadingScreen').style.display = 'flex';
+      try {
+        const res = await fetch(URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'delete',
+            sheet: type === 'category' ? 'Categories' : 'Cards',
+            name
+          })
+        });
+        const text = await res.text();
+        if (text === 'Deleted') {
+          alert('ลบข้อมูลเรียบร้อยแล้ว');
+        } else {
+          alert('ลบไม่สำเร็จ: ' + text);
+        }
+      } catch (error) {
+        alert('เกิดข้อผิดพลาดในการลบข้อมูล');
+      }
+      document.getElementById('loadingScreen').style.display = 'none';
+      renderLists();
+    }
+
+    renderLists();
+
+    const sessionKey = 'userSession';
+    if (!localStorage.getItem(sessionKey)) {
+      window.location.href = 'login.html';
+    }
+
+    const currentUser = JSON.parse(localStorage.getItem(sessionKey));
+    console.log('เข้าสู่ระบบในชื่อ:', currentUser.username);
+
+    function logout() {
+      localStorage.removeItem("userSession");
+      window.location.href = "login.html";
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      html.classList.toggle('dark');
+      const isNowDark = html.classList.contains('dark');
+      localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
+      document.getElementById('themeLabel').textContent = isNowDark ? 'ปิดโหมดกลางคืน' : 'เปิดโหมดกลางคืน';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const isDark = localStorage.getItem('theme') === 'dark';
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeLabel').textContent = 'ปิดโหมดกลางคืน';
+      }
+    });
+  </script>
+</body>
+</html>
