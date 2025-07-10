@@ -50,9 +50,18 @@
     <form id="expenseForm" class="space-y-5">
       <div>
         <label for="dateInput" class="block text-gray-600 dark:text-gray-300 mb-1">วันที่</label>
-        <input type="text" id="dateInput" placeholder="DD/MM/YYYY"
-          class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] dark:bg-gray-700 dark:text-white" required />
+        <label for="dateInput" class="flex items-center gap-2 cursor-pointer relative w-fit">
+          <span id="displayDate" class="text-lg font-medium">--/--/----</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#4CAF50]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <input type="date" id="dateInput" class="absolute inset-0 opacity-0 cursor-pointer" />
+        </label>
       </div>
+
+
+
       <div>
         <label class="block text-gray-600 dark:text-gray-300 mb-1">จำนวนเงิน</label>
         <input type="number" name="amount" placeholder="เช่น 350.00"
@@ -83,5 +92,27 @@
       </button>
     </form>
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const dateInput = document.getElementById("dateInput");
+      const displayDate = document.getElementById("displayDate");
+
+      // ตั้งค่าวันนี้เป็นค่าเริ่มต้น
+      const today = new Date();
+      const defaultDate = today.toISOString().split("T")[0]; // yyyy-mm-dd
+      dateInput.value = defaultDate;
+
+      // แสดงค่า default บน span
+      const formatted = dayjs(defaultDate).format("DD/MM/YYYY");
+      displayDate.textContent = formatted;
+
+      // เมื่อมีการเลือกวันที่ใหม่
+      dateInput.addEventListener("change", () => {
+        const formatted = dayjs(dateInput.value).format("DD/MM/YYYY");
+        displayDate.textContent = formatted;
+      });
+    });
+  </script>
+
 </body>
 </html>
