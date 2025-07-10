@@ -6,11 +6,8 @@
   <title>เข้าสู่ระบบ | CardWise</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
-  <style>
-    body {
-      font-family: 'Kanit', sans-serif;
-    }
-  </style>
+  <link rel="stylesheet" href="./styles/global.css" />
+  
   <script>
     tailwind.config = {
       darkMode: 'class'
@@ -63,65 +60,6 @@
   <div id="toast" class="fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg hidden z-50">
     เข้าสู่ระบบสำเร็จ
   </div>
-
-  <script>
-    const URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
-
-    document.getElementById('loginForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      // เริ่มแสดง Loading
-      document.getElementById('loadingOverlay').classList.remove('hidden');
-      document.getElementById('errorMsg').classList.add('hidden');
-
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
-
-      try {
-        const res = await fetch(`${URL}?sheet=Users`);
-        const users = await res.json();
-
-        const found = users.find(user => user.username === username && user.password === password);
-        if (found) {
-          localStorage.setItem("userSession", JSON.stringify({ username }));
-
-          // แสดง toast แจ้งเตือน 1.5 วินาที
-          const toast = document.getElementById('toast');
-          toast.classList.remove('hidden');
-          setTimeout(() => {
-            toast.classList.add('hidden');
-            window.location.href = 'landing.html';
-          }, 1500);
-        } else {
-          document.getElementById('errorMsg').classList.remove('hidden');
-        }
-      } catch (error) {
-        console.error("เกิดข้อผิดพลาด:", error);
-        document.getElementById('errorMsg').textContent = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
-        document.getElementById('errorMsg').classList.remove('hidden');
-      } finally {
-        // ซ่อน loading ไม่ว่าจะสำเร็จหรือไม่
-        document.getElementById('loadingOverlay').classList.add('hidden');
-      }
-    });
-  </script>
-  <script>
-    // โหลดธีมจาก localStorage ถ้ามี
-    const isDark = localStorage.getItem('theme') === 'dark';
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      document.getElementById('themeLabel').textContent = 'ปิดโหมดกลางคืน';
-    }
-
-    function toggleDarkMode() {
-      const html = document.documentElement;
-      html.classList.toggle('dark');
-      const isNowDark = html.classList.contains('dark');
-      localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
-      document.getElementById('themeLabel').textContent = isNowDark ? 'ปิดโหมดกลางคืน' : 'เปิดโหมดกลางคืน';
-    }
-  </script>
-
-
+  <script type="module" src="js/index.js"></script>
 </body>
 </html>

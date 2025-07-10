@@ -4,12 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>จัดการหมวดหมู่ & บัตร | CardWise</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles/global.css" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: 'class' };</script>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
-  <style>
-    body { font-family: 'Kanit', sans-serif; }
-  </style>
 </head>
 <body class="bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen">
 
@@ -62,113 +60,6 @@
   </div>
 
   <!-- Script -->
-  <script>
-    const URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
-
-    async function fetchList(sheetName) {
-      const res = await fetch(`${URL}?sheet=${sheetName}`);
-      return await res.json();
-    }
-
-    async function renderLists() {
-      const categories = await fetchList("Categories");
-      const cards = await fetchList("Cards");
-
-      document.getElementById('categoryList').innerHTML = categories.map(c =>
-        `<li class="flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-md">
-          <span>${c.name}</span>
-          <button onclick="deleteItem('category','${c.name}')" class="text-red-600 dark:text-red-400 hover:underline text-sm">ลบ</button>
-        </li>`).join('');
-
-      document.getElementById('cardList').innerHTML = cards.map(c =>
-        `<li class="flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-md">
-          <span>${c.name}</span>
-          <button onclick="deleteItem('card','${c.name}')" class="text-red-600 dark:text-red-400 hover:underline text-sm">ลบ</button>
-        </li>`).join('');
-
-      document.getElementById('loadingScreen').style.display = 'none';
-      document.getElementById('mainContent').classList.remove('hidden');
-    }
-
-    async function addItem(type) {
-      const inputId = type === 'category' ? 'newCategory' : 'newCard';
-      const name = document.getElementById(inputId).value.trim();
-      if (!name) return alert('กรุณากรอกชื่อ');
-
-      document.getElementById('loadingScreen').style.display = 'flex';
-      try {
-        await fetch(URL, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'add',
-            sheet: type === 'category' ? 'Categories' : 'Cards',
-            name
-          })
-        });
-        document.getElementById(inputId).value = '';
-        alert('เพิ่มข้อมูลเรียบร้อยแล้ว');
-      } catch (error) {
-        alert('เกิดข้อผิดพลาดในการเพิ่มข้อมูล');
-      }
-      document.getElementById('loadingScreen').style.display = 'none';
-      renderLists();
-    }
-
-    async function deleteItem(type, name) {
-      if (!confirm(`ลบ "${name}" ใช่ไหม?`)) return;
-      document.getElementById('loadingScreen').style.display = 'flex';
-      try {
-        const res = await fetch(URL, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'delete',
-            sheet: type === 'category' ? 'Categories' : 'Cards',
-            name
-          })
-        });
-        const text = await res.text();
-        if (text === 'Deleted') {
-          alert('ลบข้อมูลเรียบร้อยแล้ว');
-        } else {
-          alert('ลบไม่สำเร็จ: ' + text);
-        }
-      } catch (error) {
-        alert('เกิดข้อผิดพลาดในการลบข้อมูล');
-      }
-      document.getElementById('loadingScreen').style.display = 'none';
-      renderLists();
-    }
-
-    renderLists();
-
-    const sessionKey = 'userSession';
-    if (!localStorage.getItem(sessionKey)) {
-      window.location.href = 'login.html';
-    }
-
-    const currentUser = JSON.parse(localStorage.getItem(sessionKey));
-    console.log('เข้าสู่ระบบในชื่อ:', currentUser.username);
-
-    function logout() {
-      localStorage.removeItem("userSession");
-      window.location.href = "login.html";
-    }
-
-    function toggleDarkMode() {
-      const html = document.documentElement;
-      html.classList.toggle('dark');
-      const isNowDark = html.classList.contains('dark');
-      localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
-      document.getElementById('themeLabel').textContent = isNowDark ? 'ปิดโหมดกลางคืน' : 'เปิดโหมดกลางคืน';
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const isDark = localStorage.getItem('theme') === 'dark';
-      if (isDark) {
-        document.documentElement.classList.add('dark');
-        document.getElementById('themeLabel').textContent = 'ปิดโหมดกลางคืน';
-      }
-    });
-  </script>
+  <script type="module" src="./js/manage.js"></script>
 </body>
 </html>
