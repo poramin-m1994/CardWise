@@ -5,5 +5,6 @@ export function toFormattedDate(dateStr) {
 
 // รับ DD/MM/YYYY และแปลงเป็น yyyy-MM-dd
 export function toInputDate(dateStr) {
-  return dayjs(dateStr, 'DD/MM/YYYY').format('YYYY-MM-DD');
+  const [day, month, year] = dateStr.trim().split('/');
+  return `${year}-${month}-${day}`;
 }
