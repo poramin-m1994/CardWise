@@ -99,7 +99,7 @@
 
       // ตั้งค่าวันนี้เป็นค่าเริ่มต้น
       const today = new Date();
-      const defaultDate = today.toISOString().split("T")[0]; // yyyy-mm-dd
+      const defaultDate = dayjs().format('YYYY-MM-DD'); // yyyy-mm-dd
       dateInput.value = defaultDate;
 
       // แสดงค่า default บน span

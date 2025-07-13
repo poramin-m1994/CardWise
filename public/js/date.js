@@ -5,6 +5,7 @@ export function toFormattedDate(dateStr) {
 
 // รับ DD/MM/YYYY และแปลงเป็น yyyy-MM-dd
 export function toInputDate(dateStr) {
-  const [day, month, year] = dateStr.trim().split('/');
-  return `${year}-${month}-${day}`;
+  // const [day, month, year] = dateStr.trim().split('/');
+  // return `${year}-${month}-${day}`;
+  return dateStr
 }
