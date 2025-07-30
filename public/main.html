@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>บันทึกรายจ่าย | CardWise</title>
+  <title>CardWise | บันทึกรายจ่าย</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script type="module" src="js/main.js"></script>
   <script>
     tailwind.config = { darkMode: 'class' };
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
-  <style>
-    body { font-family: 'Kanit', sans-serif; }
-  </style>
+  <link rel="stylesheet" href="./styles/global.css" />
 </head>
 <body class="bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen">
 
@@ -51,9 +50,18 @@
     <form id="expenseForm" class="space-y-5">
       <div>
         <label for="dateInput" class="block text-gray-600 dark:text-gray-300 mb-1">วันที่</label>
-        <input type="text" id="dateInput" placeholder="DD/MM/YYYY"
-          class="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] dark:bg-gray-700 dark:text-white" required />
+        <label for="dateInput" class="flex items-center gap-2 cursor-pointer relative w-fit">
+          <span id="displayDate" class="text-lg font-medium">--/--/----</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#4CAF50]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <input type="date" id="dateInput" class="absolute inset-0 opacity-0 cursor-pointer" />
+        </label>
       </div>
+
+
+
       <div>
         <label class="block text-gray-600 dark:text-gray-300 mb-1">จำนวนเงิน</label>
         <input type="number" name="amount" placeholder="เช่น 350.00"
@@ -83,107 +91,31 @@
         ✅ บันทึกรายจ่าย
       </button>
     </form>
+    <div id="toast" class="fixed bottom-6 right-6 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 z-50">
+      ✅ บันทึกข้อมูลเรียบร้อยแล้ว!
+    </div>
   </div>
-
   <script>
-    const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
+    document.addEventListener("DOMContentLoaded", () => {
+      const dateInput = document.getElementById("dateInput");
+      const displayDate = document.getElementById("displayDate");
 
-    async function fetchList(sheetName) {
-      const res = await fetch(`${SHEET_URL}?sheet=${sheetName}`);
-      return await res.json();
-    }
+      // ตั้งค่าวันนี้เป็นค่าเริ่มต้น
+      const today = new Date();
+      const defaultDate = dayjs().format('YYYY-MM-DD'); // yyyy-mm-dd
+      dateInput.value = defaultDate;
 
-    async function populateDropdowns() {
-      const cards = await fetchList("Cards");
-      const categories = await fetchList("Categories");
+      // แสดงค่า default บน span
+      const formatted = dayjs(defaultDate).format("DD/MM/YYYY");
+      displayDate.textContent = formatted;
 
-      const cardSelect = document.querySelector('select[name="card"]');
-      const categorySelect = document.querySelector('select[name="category"]');
-
-      cards.forEach(card => {
-        const option = document.createElement("option");
-        option.value = card.name;
-        option.textContent = card.name;
-        cardSelect.appendChild(option);
+      // เมื่อมีการเลือกวันที่ใหม่
+      dateInput.addEventListener("change", () => {
+        const formatted = dayjs(dateInput.value).format("DD/MM/YYYY");
+        displayDate.textContent = formatted;
       });
-
-      categories.forEach(cat => {
-        const option = document.createElement("option");
-        option.value = cat.name;
-        option.textContent = cat.name;
-        categorySelect.appendChild(option);
-      });
-
-      document.getElementById('loadingOverlay').classList.add('hidden');
-      document.getElementById('mainFormContainer').classList.remove('hidden');
-    }
-
-    document.getElementById('expenseForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const loading = document.getElementById('loadingOverlay');
-      loading.classList.remove('hidden');
-
-      const dateInput = document.getElementById('dateInput');
-      const [day, month, year] = dateInput.value.split('/');
-      const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-
-      const formData = new FormData(e.target);
-      const data = {
-        date: formattedDate,
-        amount: formData.get('amount'),
-        card: formData.get('card'),
-        category: formData.get('category'),
-        note: formData.get('note')
-      };
-
-      await fetch(SHEET_URL, {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-
-      alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
-      e.target.reset();
-      loading.classList.add('hidden');
     });
-
-    const sessionKey = 'userSession';
-    if (!localStorage.getItem(sessionKey)) {
-      window.location.href = 'login.html';
-    }
-
-    const currentUser = JSON.parse(localStorage.getItem(sessionKey));
-    console.log('เข้าสู่ระบบในชื่อ:', currentUser.username);
-
-    function logout() {
-      localStorage.removeItem("userSession");
-      window.location.href = "login.html";
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      populateDropdowns();
-
-      const dateInput = document.getElementById('dateInput');
-      dateInput.addEventListener('focus', () => dateInput.type = 'date');
-      dateInput.addEventListener('blur', () => dateInput.type = 'text');
-      dateInput.addEventListener('change', () => {
-        const formatted = dayjs(dateInput.value).format('DD/MM/YYYY');
-        dateInput.value = formatted;
-      });
-
-      const isDark = localStorage.getItem('theme') === 'dark';
-      if (isDark) {
-        document.documentElement.classList.add('dark');
-        document.getElementById('themeLabel').textContent = 'ปิดโหมดกลางคืน';
-      }
-    });
-
-    function toggleDarkMode() {
-      const html = document.documentElement;
-      html.classList.toggle('dark');
-      const isNowDark = html.classList.contains('dark');
-      localStorage.setItem('theme', isNowDark ? 'dark' : 'light');
-      document.getElementById('themeLabel').textContent = isNowDark ? 'ปิดโหมดกลางคืน' : 'เปิดโหมดกลางคืน';
-    }
   </script>
+
 </body>
 </html>
