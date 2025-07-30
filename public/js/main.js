@@ -55,7 +55,7 @@ form.addEventListener('submit', async e => {
   };
 
   await postExpense(data);
-  alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
+  showToast("✅ บันทึกข้อมูลเรียบร้อยแล้ว!");
   form.reset();
   loading.classList.add('hidden');
 });
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         dateInput.type = 'text';
     }
-});
+  });
 
 
 
@@ -90,3 +90,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('themeLabel').textContent = 'ปิดโหมดกลางคืน';
   }
 });
+
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.remove('opacity-0');
+  toast.classList.add('opacity-100');
+
+  // ซ่อนหลัง 3 วินาที
+  setTimeout(() => {
+    toast.classList.remove('opacity-100');
+    toast.classList.add('opacity-0');
+  }, 3000);
+}

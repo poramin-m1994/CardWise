@@ -54,9 +54,9 @@ window.addItem = async function(type) {
       })
     });
     document.getElementById(inputId).value = '';
-    alert('เพิ่มข้อมูลเรียบร้อยแล้ว');
+    showToast("✅ เพิ่มข้อมูลเรียบร้อยแล้ว!");
   } catch (error) {
-    alert('เกิดข้อผิดพลาดในการเพิ่มข้อมูล');
+    showToast("❌ เกิดข้อผิดพลาดในการเพิ่มข้อมูล");
   }
   loading.style.display = 'none';
   renderLists();
@@ -77,15 +77,28 @@ window.deleteItem = async function(type, name) {
     });
     const text = await res.text();
     if (text === 'Deleted') {
-      alert('ลบข้อมูลเรียบร้อยแล้ว');
+      showToast("✅ ลบข้อมูลเรียบร้อยแล้ว");
     } else {
-      alert('ลบไม่สำเร็จ: ' + text);
+      showToast("❌ ลบไม่สำเร็จ: " + text);
     }
   } catch (error) {
-    alert('เกิดข้อผิดพลาดในการลบข้อมูล');
+    showToast("❌ เกิดข้อผิดพลาดในการลบข้อมูล");
   }
   loading.style.display = 'none';
   renderLists();
 };
 
 document.addEventListener('DOMContentLoaded', renderLists);
+
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.remove('opacity-0');
+  toast.classList.add('opacity-100');
+
+  // ซ่อนหลัง 3 วินาที
+  setTimeout(() => {
+    toast.classList.remove('opacity-100');
+    toast.classList.add('opacity-0');
+  }, 3000);
+}

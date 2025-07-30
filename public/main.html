@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>บันทึกรายจ่าย | CardWise</title>
+  <title>CardWise | บันทึกรายจ่าย</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <script type="module" src="js/main.js"></script>
@@ -91,6 +91,9 @@
         ✅ บันทึกรายจ่าย
       </button>
     </form>
+    <div id="toast" class="fixed bottom-6 right-6 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg opacity-0 pointer-events-none transition-opacity duration-300 z-50">
+      ✅ บันทึกข้อมูลเรียบร้อยแล้ว!
+    </div>
   </div>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
