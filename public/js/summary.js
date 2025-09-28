@@ -65,30 +65,63 @@ function renderTable(data) {
 
 function renderCharts(data) {
   const categoryData = {}, cardData = {};
-  let total = 0;
   data.forEach(item => {
     const amt = parseFloat(item.amount);
-    total += amt;
     categoryData[item.category] = (categoryData[item.category] || 0) + amt;
     cardData[item.card] = (cardData[item.card] || 0) + amt;
   });
 
-  document.getElementById('totalAmount').textContent = `ยอดรวม: ${total.toLocaleString()} บาท`;
-  document.getElementById('totalCardAmount').textContent = `ยอดรวม: ${Object.values(cardData).reduce((a, b) => a + b, 0).toLocaleString()} บาท`;
+  // รวมยอดเบื้องต้น (ทั้งหมด)
+  const totalCategory = Object.values(categoryData).reduce((a, b) => a + b, 0);
+  const totalCard = Object.values(cardData).reduce((a, b) => a + b, 0);
+
+  // แสดงยอดรวมเริ่มต้น
+  document.getElementById('totalAmount').textContent = `ยอดรวม: ${totalCategory.toLocaleString()} บาท`;
+  document.getElementById('totalCardAmount').textContent = `ยอดรวม: ${totalCard.toLocaleString()} บาท`;
 
   if (pie1) pie1.destroy();
-  pie1 = new Chart(document.getElementById('pieChartCategory'), {
-    type: 'pie',
-    data: {
-      labels: Object.keys(categoryData),
-      datasets: [{
-        data: Object.values(categoryData),
-        backgroundColor: ['#f87171', '#60a5fa', '#34d399', '#fbbf24', '#c084fc']
-      }]
-    }
-  });
-
   if (pie2) pie2.destroy();
+
+  pie1 = new Chart(document.getElementById('pieChartCategory'), {
+  type: 'pie',
+  data: {
+    labels: Object.keys(categoryData),
+    datasets: [{
+      data: Object.values(categoryData),
+      backgroundColor: ['#f87171', '#60a5fa', '#34d399', '#fbbf24', '#c084fc', '#f472b6', '#a3e635', '#64748b', '#7c3aed']
+    }]
+  },
+  options: {
+    plugins: {
+      legend: {
+        onClick: function (e, legendItem, legend) {
+          const chart = legend.chart;
+          const datasetIndex = legendItem.datasetIndex;
+          const index = legendItem.index;
+
+          const meta = chart.getDatasetMeta(datasetIndex);
+
+          // ✅ toggle visibility using toggleDataVisibility
+          chart.toggleDataVisibility(index);
+
+          // ✅ คำนวณยอดใหม่จาก slice ที่ยังแสดงอยู่
+          let newTotal = 0;
+          chart.data.datasets[0].data.forEach((val, i) => {
+            if (chart.isDatasetVisible(datasetIndex) && !chart.getDataVisibility(i)) return;
+            if (chart.getDataVisibility(i)) {
+              newTotal += val;
+            }
+          });
+
+          chart.update();
+          document.getElementById('totalAmount').textContent = `ยอดรวม: ${newTotal.toLocaleString()} บาท`;
+        }
+
+      }
+    }
+  }
+});
+
   pie2 = new Chart(document.getElementById('pieChartCard'), {
     type: 'pie',
     data: {
@@ -191,14 +224,23 @@ function attachFilterEvents(data) {
     document.getElementById('loadingOverlay').classList.add('hidden');
   });
 
-  const firstMonth = Object.keys(grouped)[0];
-  if (firstMonth) {
-    select.value = firstMonth;
-    const selectedData = grouped[firstMonth];
-    populateDropdowns(selectedData);
-    renderTable(selectedData);
-    renderCharts(selectedData);
-    attachFilterEvents(selectedData);
-    document.getElementById('loadingOverlay').classList.add('hidden');
-  }
+const monthKeys = Object.keys(grouped);
+
+// หาเดือนปัจจุบันในรูปแบบ YYYY-MM
+const today = new Date();
+const currentKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
+
+// ถ้าเดือนปัจจุบันมีอยู่ในข้อมูล ให้เลือกอันนั้น
+const selectedMonth = monthKeys.includes(currentKey) ? currentKey : monthKeys[0];
+
+if (selectedMonth) {
+  select.value = selectedMonth;
+  const selectedData = grouped[selectedMonth];
+  populateDropdowns(selectedData);
+  renderTable(selectedData);
+  renderCharts(selectedData);
+  attachFilterEvents(selectedData);
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
 })();
