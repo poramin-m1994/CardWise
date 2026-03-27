@@ -45,18 +45,37 @@ form.addEventListener('submit', async e => {
   loading.classList.remove('hidden');
 
   const isoDate = toInputDate(dateInput.value); // ใช้ helper function ใหม่
+  
+  // แปลงรูปแบบส่งเป็น YYYY/MM/DD เพื่อให้ backend (JS) แปลงเป็น Date ได้ถูกต้อง 
+  // และใช้ / แทน - เพื่อระบุเป็น Local Time ป้องกันการเกิด 7:00:00
+  const dObj = dayjs(isoDate);
+  const yyyy = dObj.year() + 543;
+  const mm = String(dObj.month() + 1).padStart(2, '0');
+  const dd = String(dObj.date()).padStart(2, '0');
+  const formattedDate = `${yyyy}/${mm}/${dd}`;
 
   const data = {
-    date: isoDate,
+    date: formattedDate,
     amount: form.amount.value,
     card: form.card.value,
     category: form.category.value,
     note: form.note.value
   };
 
+  // เก็บค่าวันที่ปัจจุบันไว้ก่อน reset form
+  const currentDateVal = dateInput.value;
+  const currentType = dateInput.type;
+  const currentDisplay = document.getElementById('displayDate').textContent;
+
   await postExpense(data);
   showToast("✅ บันทึกข้อมูลเรียบร้อยแล้ว!");
   form.reset();
+
+  // นำค่าวันที่ที่เก็บไว้กลับมาใส่คืนเพื่อไม่ให้ค่าหายเมื่อ submit หลายรอบ
+  dateInput.type = currentType;
+  dateInput.value = currentDateVal;
+  document.getElementById('displayDate').textContent = currentDisplay;
+
   loading.classList.add('hidden');
 });
 
