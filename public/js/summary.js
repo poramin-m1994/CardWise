@@ -39,8 +39,9 @@ async function fetchExpenses() {
 function groupByMonth(data) {
   const grouped = {};
   data.forEach(item => {
-    const date = new Date(item.date);
-    const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    const { year, month } = parseYearMonth(item.date);
+    if (!year || !month) return;
+    const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
     if (!grouped[monthKey]) grouped[monthKey] = [];
     grouped[monthKey].push(item);
   });
@@ -149,14 +150,13 @@ function sortTable(col) {
 function formatThaiMonth(ym) {
   const [year, month] = ym.split('-');
   const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-  return `${thaiMonths[parseInt(month) - 1]} ${parseInt(year) + 543}`;
+  return `${thaiMonths[parseInt(month, 10) - 1]} ${toBuddhistYear(year)}`;
 }
 
 function formatDateToDDMMYYYY(dateStr) {
-  const date = new Date(dateStr);
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
+  const parsed = parseDateParts(dateStr);
+  if (!parsed) return dateStr;
+  const { day, month, year } = parsed;
   return `${day}/${month}/${year}`;
 }
 
@@ -228,10 +228,16 @@ const monthKeys = Object.keys(grouped);
 
 // หาเดือนปัจจุบันในรูปแบบ YYYY-MM
 const today = new Date();
-const currentKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
+const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
+const currentKey = `${today.getFullYear()}-${currentMonth}`;
+const currentBuddhistKey = `${today.getFullYear() + 543}-${currentMonth}`;
 
 // ถ้าเดือนปัจจุบันมีอยู่ในข้อมูล ให้เลือกอันนั้น
-const selectedMonth = monthKeys.includes(currentKey) ? currentKey : monthKeys[0];
+const selectedMonth = monthKeys.includes(currentKey)
+  ? currentKey
+  : monthKeys.includes(currentBuddhistKey)
+    ? currentBuddhistKey
+    : monthKeys[0];
 
 if (selectedMonth) {
   select.value = selectedMonth;
@@ -244,3 +250,39 @@ if (selectedMonth) {
 }
 
 })();
+
+function parseYearMonth(dateStr) {
+  const parsed = parseDateParts(dateStr);
+  if (!parsed) return {};
+  return {
+    year: parsed.year,
+    month: Number(parsed.month)
+  };
+}
+
+function parseDateParts(dateStr) {
+  if (!dateStr) return null;
+
+  if (typeof dateStr === 'string') {
+    const trimmed = dateStr.trim();
+    const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      const [, year, month, day] = match;
+      return { day, month, year };
+    }
+  }
+
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear());
+  return { day, month, year };
+}
+
+function toBuddhistYear(year) {
+  const numericYear = Number(year);
+  if (Number.isNaN(numericYear)) return year;
+  return numericYear >= 2400 ? numericYear : numericYear + 543;
+}
