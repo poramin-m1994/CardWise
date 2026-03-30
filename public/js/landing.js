@@ -580,22 +580,48 @@ function renderTransactionList(expensesToRender) {
 
 function parseSheetDate(dateStr) {
     if (!dateStr) return null;
-    let d = new Date(dateStr);
-    if (!isNaN(d.getTime()) && d.getFullYear() < 2400) {
-        return d;
+
+    try {
+        const str = dateStr.toString().split(/[T ]/)[0]; // Remove time if present
+        const parts = str.split(/[\/\-.]/);
+
+        if (parts.length >= 3) {
+            let p0 = parseInt(parts[0], 10);
+            let p1 = parseInt(parts[1], 10);
+            let p2 = parseInt(parts[2], 10);
+
+            let year, month, day;
+            // Year Detection (BE years usually >= 2400, CE years 1900-2100)
+            if (p2 >= 2400 || p2 > 1900) { 
+                year = p2; month = p1; day = p0;
+            } else { 
+                year = p0; month = p1; day = p2;
+            }
+
+            if (year >= 2400) year -= 543;
+            
+            // USE NUMERIC SETTERS FOR MAXIMUM RELIABILITY
+            // .month() is 0-indexed in dayjs
+            // MANUALLY SHIFTING +1 DAY as requested by user to fix the 1-day back shift
+            const d = dayjs().year(year).month(month - 1).date(day).startOf('day').add(1, 'day');
+            
+            if (d.isValid()) return d.toDate();
+        }
+    } catch (e) {
+        console.error("Error parsing date:", dateStr, e);
     }
-    
-    // Check for Thai Buddhist calendar or specific formats
-    const parts = dateStr.split(/[\/-]/);
-    if (parts.length >= 3) {
-        let year = parseInt(parts[0], 10);
-        let month = parseInt(parts[1], 10) - 1;
-        let day = parseInt(parts[2], 10);
-        
-        if (year >= 2400) year -= 543;
-        
-        return new Date(year, month, day);
+
+    // Ultra-safe fallback using native Date constructor with numeric parts
+    const fallbackParts = dateStr.toString().split(/[T ]/)[0].split(/[\/\-.]/);
+    if (fallbackParts.length >= 3) {
+        let y = parseInt(fallbackParts[0], 10);
+        let m = parseInt(fallbackParts[1], 10);
+        let d = parseInt(fallbackParts[2], 10);
+        if (d >= 2400 || d > 1900) { let tmp = y; y = d; d = tmp; }
+        if (y >= 2400) y -= 543;
+        return new Date(y, m - 1, d);
     }
+
     return null;
 }
 

@@ -84,44 +84,44 @@ function renderCharts(data) {
   if (pie2) pie2.destroy();
 
   pie1 = new Chart(document.getElementById('pieChartCategory'), {
-  type: 'pie',
-  data: {
-    labels: Object.keys(categoryData),
-    datasets: [{
-      data: Object.values(categoryData),
-      backgroundColor: ['#f87171', '#60a5fa', '#34d399', '#fbbf24', '#c084fc', '#f472b6', '#a3e635', '#64748b', '#7c3aed']
-    }]
-  },
-  options: {
-    plugins: {
-      legend: {
-        onClick: function (e, legendItem, legend) {
-          const chart = legend.chart;
-          const datasetIndex = legendItem.datasetIndex;
-          const index = legendItem.index;
+    type: 'pie',
+    data: {
+      labels: Object.keys(categoryData),
+      datasets: [{
+        data: Object.values(categoryData),
+        backgroundColor: ['#f87171', '#60a5fa', '#34d399', '#fbbf24', '#c084fc', '#f472b6', '#a3e635', '#64748b', '#7c3aed']
+      }]
+    },
+    options: {
+      plugins: {
+        legend: {
+          onClick: function (e, legendItem, legend) {
+            const chart = legend.chart;
+            const datasetIndex = legendItem.datasetIndex;
+            const index = legendItem.index;
 
-          const meta = chart.getDatasetMeta(datasetIndex);
+            const meta = chart.getDatasetMeta(datasetIndex);
 
-          // ✅ toggle visibility using toggleDataVisibility
-          chart.toggleDataVisibility(index);
+            // ✅ toggle visibility using toggleDataVisibility
+            chart.toggleDataVisibility(index);
 
-          // ✅ คำนวณยอดใหม่จาก slice ที่ยังแสดงอยู่
-          let newTotal = 0;
-          chart.data.datasets[0].data.forEach((val, i) => {
-            if (chart.isDatasetVisible(datasetIndex) && !chart.getDataVisibility(i)) return;
-            if (chart.getDataVisibility(i)) {
-              newTotal += val;
-            }
-          });
+            // ✅ คำนวณยอดใหม่จาก slice ที่ยังแสดงอยู่
+            let newTotal = 0;
+            chart.data.datasets[0].data.forEach((val, i) => {
+              if (chart.isDatasetVisible(datasetIndex) && !chart.getDataVisibility(i)) return;
+              if (chart.getDataVisibility(i)) {
+                newTotal += val;
+              }
+            });
 
-          chart.update();
-          document.getElementById('totalAmount').textContent = `ยอดรวม: ${newTotal.toLocaleString()} บาท`;
+            chart.update();
+            document.getElementById('totalAmount').textContent = `ยอดรวม: ${newTotal.toLocaleString()} บาท`;
+          }
+
         }
-
       }
     }
-  }
-});
+  });
 
   pie2 = new Chart(document.getElementById('pieChartCard'), {
     type: 'pie',
@@ -224,30 +224,30 @@ function attachFilterEvents(data) {
     document.getElementById('loadingOverlay').classList.add('hidden');
   });
 
-const monthKeys = Object.keys(grouped);
+  const monthKeys = Object.keys(grouped);
 
-// หาเดือนปัจจุบันในรูปแบบ YYYY-MM
-const today = new Date();
-const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
-const currentKey = `${today.getFullYear()}-${currentMonth}`;
-const currentBuddhistKey = `${today.getFullYear() + 543}-${currentMonth}`;
+  // หาเดือนปัจจุบันในรูปแบบ YYYY-MM
+  const today = new Date();
+  const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
+  const currentKey = `${today.getFullYear()}-${currentMonth}`;
+  const currentBuddhistKey = `${today.getFullYear() + 543}-${currentMonth}`;
 
-// ถ้าเดือนปัจจุบันมีอยู่ในข้อมูล ให้เลือกอันนั้น
-const selectedMonth = monthKeys.includes(currentKey)
-  ? currentKey
-  : monthKeys.includes(currentBuddhistKey)
-    ? currentBuddhistKey
-    : monthKeys[0];
+  // ถ้าเดือนปัจจุบันมีอยู่ในข้อมูล ให้เลือกอันนั้น
+  const selectedMonth = monthKeys.includes(currentKey)
+    ? currentKey
+    : monthKeys.includes(currentBuddhistKey)
+      ? currentBuddhistKey
+      : monthKeys[0];
 
-if (selectedMonth) {
-  select.value = selectedMonth;
-  const selectedData = grouped[selectedMonth];
-  populateDropdowns(selectedData);
-  renderTable(selectedData);
-  renderCharts(selectedData);
-  attachFilterEvents(selectedData);
-  document.getElementById('loadingOverlay').classList.add('hidden');
-}
+  if (selectedMonth) {
+    select.value = selectedMonth;
+    const selectedData = grouped[selectedMonth];
+    populateDropdowns(selectedData);
+    renderTable(selectedData);
+    renderCharts(selectedData);
+    attachFilterEvents(selectedData);
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }
 
 })();
 
@@ -263,22 +263,57 @@ function parseYearMonth(dateStr) {
 function parseDateParts(dateStr) {
   if (!dateStr) return null;
 
-  if (typeof dateStr === 'string') {
-    const trimmed = dateStr.trim();
-    const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (match) {
-      const [, year, month, day] = match;
-      return { day, month, year };
+  try {
+    const str = dateStr.toString().split(/[T ]/)[0];
+    const parts = str.split(/[\/\-.]/);
+
+    if (parts.length >= 3) {
+      let p0 = parseInt(parts[0], 10);
+      let p1 = parseInt(parts[1], 10);
+      let p2 = parseInt(parts[2], 10);
+
+      let year, month, day;
+      if (p2 >= 2400 || p2 > 1900) {
+        year = p2; month = p1; day = p0;
+      } else {
+        year = p0; month = p1; day = p2;
+      }
+
+      if (year >= 2400) year -= 543;
+
+      const d = dayjs().year(year).month(month - 1).date(day).startOf('day').add(1, 'day');
+
+      if (d && d.isValid()) {
+        return {
+          day: String(d.date()).padStart(2, '0'),
+          month: String(d.month() + 1).padStart(2, '0'),
+          year: String(d.year())
+        };
+      }
+    }
+  } catch (e) {
+    console.error("Error parsing date:", dateStr, e);
+  }
+
+  // Fallback to native Date (Local Numeric)
+  const fParts = dateStr.toString().split(/[T ]/)[0].split(/[\/\-.]/);
+  if (fParts.length >= 3) {
+    let y = parseInt(fParts[0], 10);
+    let m = parseInt(fParts[1], 10);
+    let d = parseInt(fParts[2], 10);
+    if (d >= 2400 || d > 1900) { let tmp = y; y = d; d = tmp; }
+    if (y >= 2400) y -= 543;
+    const date = new Date(y, m - 1, d);
+    if (!Number.isNaN(date.getTime())) {
+      return {
+        day: String(date.getDate()).padStart(2, '0'),
+        month: String(date.getMonth() + 1).padStart(2, '0'),
+        year: String(date.getFullYear())
+      };
     }
   }
 
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return null;
-
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear());
-  return { day, month, year };
+  return null;
 }
 
 function toBuddhistYear(year) {
