@@ -1,69 +1,338 @@
 <!DOCTYPE html>
-<html lang="th" class="">
+<html lang="th" class="dark">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/png" href="./images/favicon.png" />
-  <title>CardWise | หน้าแรก</title>
+  <title>CardWise | Dashboard</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              900: '#0b1326', // Deep Slate / Background
+              800: '#17223b', // Card background 
+              700: '#23304a', // Lighter element backgrounds
+              600: '#324565', // Highlights
+              border: '#23304a'
+            },
+            mint: {
+              DEFAULT: '#4ade80', // Primary Mint
+              hover: '#22c55e',
+            }
+          },
+          fontFamily: {
+            sans: ['Manrope', 'Kanit', 'sans-serif'],
+          }
+        }
+      }
     };
   </script>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./styles/global.css" />
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: #324565;
+      border-radius: 20px;
+    }
+  </style>
 </head>
-<body class="bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col">
+
+<body
+  class="bg-slate-900 text-gray-200 min-h-screen flex flex-col font-sans selection:bg-mint selection:text-slate-900 overflow-x-hidden">
 
   <!-- Navigation Bar -->
-  <nav class="bg-white dark:bg-gray-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center">
-    <!-- Logo & Brand -->
+  <nav
+    class="bg-slate-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center border-b border-slate-700">
     <div class="flex items-center space-x-3">
-      <h1 class="text-2xl font-extrabold text-[#1D3557] dark:text-white">Card<span class="text-[#4CAF50]">Wise</span></h1>
+      <h1 class="text-2xl font-extrabold text-white"><i class="fa-solid fa-credit-card text-mint mr-1"></i> Card<span
+          class="text-mint">Wise.</span></h1>
     </div>
 
     <!-- Navigation Links -->
-    <div class="mt-2 sm:mt-0 flex flex-wrap gap-3 text-sm font-medium items-center">
-      <a href="landing.html" class="text-white bg-[#4CAF50] px-4 py-2 rounded-full transition shadow">หน้าหลัก</a>
-      <a href="main.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">บันทึกรายจ่าย</a>
-      <a href="summary.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">ดูรายงาน</a>
-      <a href="manage.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">หมวดหมู่/บัตร</a>
-      <button onclick="logout()" class="text-red-600 dark:text-red-400 hover:text-white hover:bg-red-500 px-4 py-2 rounded-full transition">ออกจากระบบ</button>
-      <button onclick="toggleDarkMode()" class="text-sm underline text-gray-600 dark:text-gray-300 ml-2" id="themeLabel">เปิดโหมดกลางคืน</button>
+    <div class="mt-4 sm:mt-0 flex flex-wrap gap-2 text-sm font-semibold items-center">
+      <a href="landing.html" class="text-slate-900 bg-mint px-5 py-2 rounded-xl transition shadow">Home</a>
+      <a href="manage.html"
+        class="text-gray-300 hover:text-white hover:bg-slate-700 px-5 py-2 rounded-xl transition">Categories</a>
+      <button onclick="logout()"
+        class="text-red-400 hover:text-white hover:bg-red-500/20 px-5 py-2 rounded-xl transition">Logout</button>
+      <div class="w-px h-6 bg-slate-700 mx-2"></div>
+      <i class="fa-regular fa-bell text-gray-400 text-xl cursor-pointer hover:text-white transition"></i>
+      <button id="themeLabel" class="hidden">ToggleTheme</button> <!-- Hidden button to prevent JS errors -->
     </div>
   </nav>
 
-  <!-- Dashboard -->
-  <main class="flex-grow flex flex-col items-center justify-center p-6">
-    <div class="text-center mb-10">
-      <h2 class="text-2xl font-bold text-[#1D3557] dark:text-white mb-2">ยินดีต้อนรับสู่ CardWise 🎉</h2>
-      <p class="text-gray-600 dark:text-gray-300">กรุณาเลือกเมนูที่คุณต้องการใช้งาน</p>
+  <!-- Main Dashboard -->
+  <main class="flex-grow p-4 md:p-8 flex flex-col">
+    <!-- Global Dashboard Filter -->
+    <div
+      class="w-full max-w-[1400px] mx-auto mb-8 flex justify-between items-center bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50 backdrop-blur-md shadow-lg">
+      <div class="flex items-center gap-3">
+        <div
+          class="w-10 h-10 rounded-xl bg-mint/10 flex items-center justify-center text-mint shadow-[0_0_15px_rgba(74,222,128,0.1)]">
+          <i class="fa-solid fa-calendar-days"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-white leading-tight">Dashboard Overview</h2>
+          <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Select Month & Year</p>
+        </div>
+      </div>
+      <div class="relative min-w-[200px]">
+        <select id="globalMonthSelect"
+          class="w-full bg-slate-900 border border-slate-700 text-gray-300 text-sm font-bold rounded-xl py-2.5 pl-4 pr-10 focus:border-mint focus:ring-1 focus:ring-mint transition outline-none appearance-none cursor-pointer">
+          <option value="">กำลังโหลด...</option>
+        </select>
+        <i
+          class="fa-solid fa-chevron-down text-mint absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-xs"></i>
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl w-full">
-      <!-- บันทึกรายจ่าย -->
-      <a href="main.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
-        <div class="text-5xl mb-4 bg-[#1D3557] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">📝</div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">บันทึกรายจ่าย</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-300">เพิ่มรายการค่าใช้จ่ายของคุณ</p>
-      </a>
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-8 w-full max-w-[1400px] mx-auto flex-grow h-full items-start">
 
-      <!-- ดูรายงาน -->
-      <a href="summary.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
-        <div class="text-5xl mb-4 bg-[#4CAF50] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">📊</div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">ดูรายงานสรุป</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-300">ดูกราฟและสถิติรายจ่ายประจำเดือน</p>
-      </a>
+      <!-- Left Panel: Insights (Col Span 5) -->
+      <div class="xl:col-span-5 flex flex-col gap-8 w-full">
 
-      <!-- จัดการหมวดหมู่/บัตร -->
-      <a href="manage.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
-        <div class="text-5xl mb-4 bg-[#FFC107] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">💳</div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">จัดการหมวดหมู่/บัตร</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-300">เพิ่ม ลบ หรือจัดการรายการที่ใช้ได้</p>
-      </a>
+        <!-- Total Balance -->
+        <div class="pl-2">
+          <h3 class="text-[11px] font-extrabold tracking-[0.15em] text-slate-600 uppercase mb-1">Total Balance</h3>
+          <div class="flex items-end gap-4">
+            <h1 id="totalBalanceAmount" class="text-5xl font-extrabold text-mint leading-none">...</h1>
+            <span id="totalBalancePercent"
+              class="bg-slate-800 text-gray-500 text-xs font-bold px-2 py-1 rounded-md mb-1">...</span>
+          </div>
+        </div>
+
+        <!-- Category Spending Card -->
+        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-border shadow-lg">
+          <div class="flex items-center gap-3 mb-8">
+            <i class="fa-solid fa-chart-pie text-mint"></i>
+            <h2 class="text-lg font-bold text-white">Category Spending</h2>
+          </div>
+
+          <div class="flex flex-row items-center justify-start gap-10 sm:gap-14 px-2">
+            <!-- Chart relative container -->
+            <div class="relative w-36 h-36">
+              <canvas id="doughnutChart"></canvas>
+              <!-- Center Text -->
+              <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-1">
+                <span id="spendingMonth" class="text-xs text-gray-400 font-bold mb-1">-</span>
+                <span id="spendingTotal" class="text-lg font-bold text-white">฿0</span>
+              </div>
+            </div>
+
+            <!-- Custom Legend -->
+            <div id="categoryLegend" class="flex flex-col gap-4">
+              <span class="text-xs text-gray-500">กำลังโหลด...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly Insights Card -->
+        <div
+          class="bg-slate-800 p-8 rounded-2xl border border-slate-border shadow-lg flex-grow flex flex-col min-h-[280px]">
+          <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-chart-simple text-mint"></i>
+              <h2 class="text-lg font-bold text-white">Monthly Insights</h2>
+            </div>
+            <span
+              class="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest bg-slate-700 px-3 py-1 rounded-md">Last
+              6 Months</span>
+          </div>
+
+          <div class="relative w-full flex-grow h-40 mt-auto">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Panel: Activity (Col Span 7) -->
+      <div
+        class="xl:col-span-7 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-border shadow-lg flex flex-col p-8 overflow-hidden w-full min-h-[600px]">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-6">
+          <div>
+            <h2 class="text-2xl font-bold text-white mb-1">Transaction History</h2>
+            <p class="text-sm text-gray-400 font-medium">Your latest financial activity across all cards.</p>
+          </div>
+          <div class="flex gap-2">
+            <button id="toggleFilterBtn"
+              class="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-gray-300 flex items-center justify-center transition border border-transparent hover:border-slate-border shadow-sm"><i
+                class="fa-solid fa-filter text-sm"></i></button>
+            <button id="toggleSearchBtn"
+              class="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-gray-300 flex items-center justify-center transition border border-transparent hover:border-slate-border shadow-sm"><i
+                class="fa-solid fa-magnifying-glass text-sm"></i></button>
+          </div>
+        </div>
+
+        <!-- Collapsible Filter/Search Bar -->
+        <div id="filterPanel" class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out mb-0 opacity-0">
+          <div
+            class="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-slate-900/40 rounded-xl border border-slate-700 mb-6 backdrop-blur-sm">
+            <!-- Search -->
+            <div class="relative">
+              <i
+                class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+              <input type="text" id="historySearch" placeholder="ค้นหาบันทึก..."
+                class="w-full bg-slate-800 border border-slate-700 text-gray-300 text-xs rounded-lg py-2 pl-9 pr-3 focus:border-mint focus:ring-1 focus:ring-mint transition outline-none">
+            </div>
+            <!-- Category -->
+            <div class="relative">
+              <i class="fa-solid fa-tag absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs text-mint"></i>
+              <select id="historyCategoryFilter"
+                class="w-full bg-slate-800 border border-slate-700 text-gray-300 text-xs rounded-lg py-2 pl-9 pr-3 focus:border-mint focus:ring-1 focus:ring-mint transition outline-none appearance-none">
+                <option value="">ทุกหมวดหมู่</option>
+              </select>
+            </div>
+            <!-- Card -->
+            <div class="relative">
+              <i
+                class="fa-solid fa-credit-card absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs text-mint"></i>
+              <select id="historyCardFilter"
+                class="w-full bg-slate-800 border border-slate-700 text-gray-300 text-xs rounded-lg py-2 pl-9 pr-3 focus:border-mint focus:ring-1 focus:ring-mint transition outline-none appearance-none">
+                <option value="">ทุกบัตร</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Headers -->
+        <div
+          class="grid grid-cols-12 gap-4 text-[10px] font-extrabold text-slate-600 uppercase tracking-widest pb-3 border-b border-slate-700 mb-2 px-2">
+          <div class="col-span-3">Date</div>
+          <div class="col-span-3">Category</div>
+          <div class="col-span-4">Note</div>
+          <div class="col-span-2 text-right">Amount</div>
+        </div>
+
+        <!-- Transaction List -->
+        <div id="transactionList" class="flex flex-col flex-grow overflow-y-auto pr-1 gap-1">
+          <div class="flex items-center justify-center h-40 text-gray-500 font-bold text-sm">
+            <i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังโหลดรายการ...
+          </div>
+        </div>
+
+      </div>
+
     </div>
   </main>
+
+  <!-- Floating Action Button -->
+  <button id="fab"
+    class="fixed bottom-10 right-10 w-16 h-16 bg-mint text-slate-900 rounded-2xl flex items-center justify-center text-2xl shadow-[0_4px_20px_rgba(74,222,128,0.4)] hover:scale-105 transition z-40 outline-none border border-black/20 focus:ring-4 focus:ring-mint/50">
+    <i class="fa-solid fa-plus font-bold"></i>
+  </button>
+
+  <!-- Add Expense Modal Overlay -->
+  <div
+    class="fixed inset-0 bg-[#0b1326]/80 backdrop-blur-sm flex items-center justify-center z-[1000] opacity-0 pointer-events-none transition-opacity duration-300"
+    id="expenseModal">
+    <!-- Modal Content -->
+    <div
+      class="bg-[#1a233a] p-8 rounded-2xl border border-slate-border w-full max-w-[460px] transform translate-y-5 transition-transform duration-300 shadow-2xl mx-4">
+
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-xl font-bold text-white">เพิ่มรายการใหม่</h2>
+        <button id="closeModal"
+          class="w-8 h-8 rounded-lg border border-dashed border-slate-600 text-gray-400 hover:text-white hover:border-white transition flex items-center justify-center outline-none bg-transparent">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Amount -->
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-gray-400 mb-2">จำนวนเงิน</label>
+        <div class="bg-[#23304a] rounded-xl flex items-center p-4">
+          <span class="text-mint font-bold text-xl mr-3">฿</span>
+          <input type="number" id="modalAmount"
+            class="bg-transparent border-none text-gray-300 text-2xl font-bold w-full outline-none p-0 focus:ring-0"
+            placeholder="0.00" step="0.01">
+        </div>
+      </div>
+
+      <!-- Date & Card -->
+      <div class="grid grid-cols-2 gap-4 mb-5">
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-2">วันที่</label>
+          <div class="bg-[#23304a] rounded-xl flex items-center p-3">
+            <i class="fa-regular fa-calendar text-gray-400 mr-2 text-sm"></i>
+            <input type="date" id="modalDate"
+              class="bg-transparent border-none text-gray-300 text-sm font-medium w-full outline-none p-0 focus:ring-0">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-400 mb-2">บัญชี/บัตร</label>
+          <div class="bg-[#23304a] rounded-xl flex items-center px-3 py-3 relative">
+            <i class="fa-regular fa-credit-card text-gray-400 mr-2 text-sm"></i>
+            <select id="cardSelect"
+              class="bg-transparent border-none text-gray-300 text-sm font-medium w-full outline-none p-0 focus:ring-0 appearance-none pl-1">
+              <option value="">กำลังโหลด...</option>
+            </select>
+            <i class="fa-solid fa-chevron-down text-gray-500 absolute right-4 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Categories -->
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-gray-400 mb-2">หมวดหมู่</label>
+        <div id="categoryContainer" class="flex flex-wrap gap-2">
+          <span class="text-xs text-gray-500">กำลังโหลด...</span>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-gray-400 mb-2">บันทึกเพิ่มเติม</label>
+        <textarea id="modalNote"
+          class="w-full bg-[#23304a] border-none text-gray-300 text-xs font-medium rounded-xl p-4 outline-none focus:ring-1 focus:ring-slate-500 transition resize-none h-20 placeholder-gray-500"
+          placeholder="ระบุรายละเอียดสั้นๆ..."></textarea>
+      </div>
+
+
+
+      <!-- Submit -->
+      <!-- Added dotted border outline wrapper outside button or border within to match mockup's dashed selection. The mockup literally has a dashed box overlay which indicates selection or focus state. A shadow is a standard web pattern. Let's use a nice shadow and styling. -->
+      <div
+        class="p-[2px] rounded-[14px] border border-dashed border-mint/60 hover:border-mint transition-colors relative">
+        <button id="recordExpense"
+          class="w-full bg-mint hover:bg-mint-hover text-slate-900 font-extrabold text-sm py-4 rounded-xl transition shadow-[0_2px_15px_rgba(74,222,128,0.2)]">
+          บันทึกรายจ่าย
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast"
+    class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white px-6 py-3 rounded-2xl shadow-2xl transition-all border-l-4 border-l-mint z-[2000] opacity-0 translate-y-10">
+    <div class="flex items-center gap-3">
+      <i class="fa-solid fa-circle-check text-mint" id="toastIcon"></i>
+      <span id="toastMessage" class="text-xs font-bold">บันทึกสำเร็จ!</span>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="js/landing.js"></script>
 </body>
-<script type="module" src="js/landing.js"></script>
+
 </html>

@@ -5,9 +5,15 @@ export async function fetchSheet(sheetName) {
   return await res.json();
 }
 
+export async function fetchExpenses() {
+  const res = await fetch(SHEET_URL);
+  return await res.json();
+}
+
 export async function postExpense(data) {
   await fetch(SHEET_URL, {
     method: 'POST',
     body: JSON.stringify(data)
   });
 }
+
