@@ -67,10 +67,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-let doughnutChart;
+let positiveDoughnutChart;
+let negativeDoughnutChart;
 let barChart;
 let loadedExpenses = []; // Store current month's expenses for sub-filtering
 const CHART_COLORS = ['#4ade80', '#34d399', '#2dd4bf', '#22d3ee', '#38bdf8', '#818cf8', '#fbbf24', '#f87171', '#94a3b8'];
+const POSITIVE_COLORS = ['#4ade80', '#34d399', '#2dd4bf', '#22d3ee', '#38bdf8', '#818cf8', '#a78bfa'];
+const NEGATIVE_COLORS = ['#f87171', '#fb7185', '#f43f5e', '#fb923c', '#f59e0b', '#ec4899', '#c084fc'];
 
 function initGlobalFilter(expenses) {
     const select = document.getElementById('globalMonthSelect');
@@ -122,9 +125,8 @@ function refreshDashboard(allExpenses, monthKey) {
 function initFilterBar() {
     const filterPanel = document.getElementById('filterPanel');
     const toggleFilterBtn = document.getElementById('toggleFilterBtn');
-    const toggleSearchBtn = document.getElementById('toggleSearchBtn');
     
-    if (!filterPanel || !toggleFilterBtn || !toggleSearchBtn) return;
+    if (!filterPanel || !toggleFilterBtn) return;
 
     const toggle = () => {
         if (filterPanel.classList.contains('max-h-0')) {
@@ -137,7 +139,6 @@ function initFilterBar() {
     };
 
     toggleFilterBtn.addEventListener('click', toggle);
-    toggleSearchBtn.addEventListener('click', toggle);
 
     // Setup filter listeners
     const searchInput = document.getElementById('historySearch');
@@ -378,17 +379,187 @@ async function updateMonthlyInsights(expenses, refMonth, refYear) {
     }
 }
 
+function renderDoughnutSection({
+    chartInstance,
+    chartCanvas,
+    monthElem,
+    totalElem,
+    badgeElem,
+    legendElem,
+    items,
+    isNegative,
+    colorPalette,
+    monthLabel,
+    emptyText
+}) {
+    if (!chartCanvas || !legendElem) return chartInstance;
+
+    const categoryMap = {};
+    let total = 0;
+
+    items.forEach(item => {
+        const amt = Math.abs(parseFloat(item.amount) || 0);
+        const cat = item.category || 'ทั่วไป';
+        categoryMap[cat] = (categoryMap[cat] || 0) + amt;
+        total += amt;
+    });
+
+    const sign = isNegative ? '-' : '';
+
+    // Update Badge
+    if (badgeElem) {
+        if (total > 0) {
+            badgeElem.textContent = `${sign}฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        } else {
+            badgeElem.textContent = '฿0';
+        }
+    }
+
+    // Update Center Month
+    if (monthElem) {
+        monthElem.textContent = monthLabel;
+    }
+
+    // Update Center Total
+    if (totalElem) {
+        if (total > 0) {
+            const formattedTotal = total >= 1000 ? (total / 1000).toFixed(1) + 'k' : total.toFixed(0);
+            totalElem.textContent = `${sign}฿${formattedTotal}`;
+        } else {
+            totalElem.textContent = '฿0';
+        }
+    }
+
+    // Handle Empty State
+    if (total === 0) {
+        legendElem.innerHTML = `<span class="text-xs text-gray-500 py-3">${emptyText}ในเดือนนี้</span>`;
+
+        const emptyLabels = [emptyText];
+        const emptyData = [1];
+        const emptyColors = ['#23304a'];
+
+        if (chartInstance) {
+            chartInstance.data.labels = emptyLabels;
+            chartInstance.data.datasets[0].data = emptyData;
+            chartInstance.data.datasets[0].backgroundColor = emptyColors;
+            if (chartInstance.options.plugins?.tooltip) {
+                chartInstance.options.plugins.tooltip.enabled = false;
+            }
+            chartInstance.update();
+            return chartInstance;
+        } else {
+            const ctx = chartCanvas.getContext('2d');
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: emptyLabels,
+                    datasets: [{
+                        data: emptyData,
+                        backgroundColor: emptyColors,
+                        borderWidth: 0,
+                        hoverOffset: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    cutout: '78%'
+                }
+            });
+        }
+    }
+
+    // Render populated data
+    const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+    const labels = sortedCategories.map(c => c[0]);
+    const data = sortedCategories.map(c => c[1]);
+    const backgroundColors = sortedCategories.map((_, i) => colorPalette[i % colorPalette.length]);
+
+    // Update Legend
+    legendElem.innerHTML = '';
+    sortedCategories.forEach(([cat, val], i) => {
+        const percent = ((val / total) * 100).toFixed(0);
+        const color = backgroundColors[i];
+
+        const legendItem = document.createElement('div');
+        legendItem.className = "flex items-center gap-3 text-xs font-bold text-white";
+        legendItem.innerHTML = `
+            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${color}"></div>
+            <span class="truncate">${cat}</span>
+            <span class="text-gray-400 font-normal ml-auto">(${percent}%)</span>
+        `;
+        legendElem.appendChild(legendItem);
+    });
+
+    if (chartInstance) {
+        chartInstance.data.labels = labels;
+        chartInstance.data.datasets[0].data = data;
+        chartInstance.data.datasets[0].backgroundColor = backgroundColors;
+        if (chartInstance.options.plugins?.tooltip) {
+            chartInstance.options.plugins.tooltip.enabled = true;
+        }
+        chartInstance.update();
+        return chartInstance;
+    } else {
+        const ctx = chartCanvas.getContext('2d');
+        return new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed !== null) {
+                                    label += `${sign}฿${context.parsed.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                cutout: '78%'
+            }
+        });
+    }
+}
+
 async function updateCategorySpending(expenses, refMonth, refYear) {
-    const today = new Date();
-    const currentM = refMonth || today.getMonth() + 1;
-    const currentY = refYear || today.getFullYear();
+    let currentM = refMonth;
+    let currentY = refYear;
+    if (!currentM || !currentY) {
+        const globalSelect = document.getElementById('globalMonthSelect');
+        if (globalSelect && globalSelect.value) {
+            const [y, m] = globalSelect.value.split('-').map(Number);
+            currentY = y;
+            currentM = m;
+        } else {
+            const today = new Date();
+            currentM = today.getMonth() + 1;
+            currentY = today.getFullYear();
+        }
+    }
 
-    const spendingMonthElem = document.getElementById('spendingMonth');
-    const spendingTotalElem = document.getElementById('spendingTotal');
-    const categoryLegend = document.getElementById('categoryLegend');
-    const chartCanvas = document.getElementById('doughnutChart');
-
-    if (!chartCanvas || !categoryLegend) return;
+    const monthDate = new Date(currentY, currentM - 1, 1);
+    const monthLabel = monthDate.toLocaleDateString('th-TH', { month: 'short' });
 
     // Include all transactions in spending unless it's categorized as Income
     const currentMonthExpenses = expenses.filter(item => {
@@ -397,86 +568,38 @@ async function updateCategorySpending(expenses, refMonth, refYear) {
         return d && d.getFullYear() === currentY && (d.getMonth() + 1) === currentM && isNotIncome;
     });
 
-    const categoryMap = {};
-    let totalSpending = 0;
+    const positiveExpenses = currentMonthExpenses.filter(item => (parseFloat(item.amount) || 0) > 0);
+    const negativeExpenses = currentMonthExpenses.filter(item => (parseFloat(item.amount) || 0) < 0);
 
-    currentMonthExpenses.forEach(item => {
-        const amt = Math.abs(parseFloat(item.amount) || 0);
-        categoryMap[item.category] = (categoryMap[item.category] || 0) + amt;
-        totalSpending += amt;
+    // Render Positive Chart
+    positiveDoughnutChart = renderDoughnutSection({
+        chartInstance: positiveDoughnutChart,
+        chartCanvas: document.getElementById('positiveDoughnutChart'),
+        monthElem: document.getElementById('positiveSpendingMonth'),
+        totalElem: document.getElementById('positiveSpendingTotal'),
+        badgeElem: document.getElementById('positiveSpendingBadge'),
+        legendElem: document.getElementById('positiveCategoryLegend'),
+        items: positiveExpenses,
+        isNegative: false,
+        colorPalette: POSITIVE_COLORS,
+        monthLabel: monthLabel,
+        emptyText: 'ไม่มียอดบวก'
     });
 
-    const sortedCategories = Object.entries(categoryMap)
-        .sort((a, b) => b[1] - a[1]);
-
-    const labels = sortedCategories.map(c => c[0]);
-    const data = sortedCategories.map(c => c[1]);
-    const backgroundColors = sortedCategories.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
-
-    // Update Center Text
-    if (spendingMonthElem) {
-        spendingMonthElem.textContent = today.toLocaleDateString('th-TH', { month: 'short' });
-    }
-    if (spendingTotalElem) {
-        spendingTotalElem.textContent = '฿' + (totalSpending >= 1000 ? (totalSpending/1000).toFixed(1) + 'k' : totalSpending.toFixed(0));
-    }
-
-    // Update Legend
-    categoryLegend.innerHTML = '';
-    sortedCategories.forEach(([cat, val], i) => {
-        const percent = ((val / totalSpending) * 100).toFixed(0);
-        const color = backgroundColors[i];
-        
-        const legendItem = document.createElement('div');
-        legendItem.className = "flex items-center gap-4 text-xs font-extrabold text-white";
-        legendItem.innerHTML = `
-            <div class="w-2.5 h-2.5 rounded-full" style="background-color: ${color}"></div>
-            ${cat} (${percent}%)
-        `;
-        categoryLegend.appendChild(legendItem);
+    // Render Negative Chart
+    negativeDoughnutChart = renderDoughnutSection({
+        chartInstance: negativeDoughnutChart,
+        chartCanvas: document.getElementById('negativeDoughnutChart'),
+        monthElem: document.getElementById('negativeSpendingMonth'),
+        totalElem: document.getElementById('negativeSpendingTotal'),
+        badgeElem: document.getElementById('negativeSpendingBadge'),
+        legendElem: document.getElementById('negativeCategoryLegend'),
+        items: negativeExpenses,
+        isNegative: true,
+        colorPalette: NEGATIVE_COLORS,
+        monthLabel: monthLabel,
+        emptyText: 'ไม่มียอดลบ'
     });
-
-    // Update or Init Chart
-    if (doughnutChart) {
-        doughnutChart.data.labels = labels;
-        doughnutChart.data.datasets[0].data = data;
-        doughnutChart.data.datasets[0].backgroundColor = backgroundColors;
-        doughnutChart.update();
-    } else {
-        const ctx = chartCanvas.getContext('2d');
-        doughnutChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: backgroundColors,
-                    borderWidth: 0,
-                    hoverOffset: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { 
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                if (label) label += ': ';
-                                if (context.parsed !== null) {
-                                    label += '฿' + context.parsed.toLocaleString('th-TH');
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                },
-                cutout: '80%'
-            }
-        });
-    }
 }
 
 const categoryIcons = {

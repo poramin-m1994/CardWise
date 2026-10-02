@@ -118,25 +118,61 @@
 
         <!-- Category Spending Card -->
         <div class="bg-slate-800 p-8 rounded-2xl border border-slate-border shadow-lg">
-          <div class="flex items-center gap-3 mb-8">
+          <div class="flex items-center gap-3 mb-6">
             <i class="fa-solid fa-chart-pie text-mint"></i>
             <h2 class="text-lg font-bold text-white">Category Spending</h2>
           </div>
 
-          <div class="flex flex-row items-center justify-start gap-10 sm:gap-14 px-2">
-            <!-- Chart relative container -->
-            <div class="relative w-36 h-36">
-              <canvas id="doughnutChart"></canvas>
-              <!-- Center Text -->
-              <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-1">
-                <span id="spendingMonth" class="text-xs text-gray-400 font-bold mb-1">-</span>
-                <span id="spendingTotal" class="text-lg font-bold text-white">฿0</span>
+          <div class="flex flex-col gap-8">
+            <!-- Chart 1: ยอดบวก (+) -->
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-mint shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
+                  <span class="text-xs font-bold text-gray-300">ยอดบวก (+)</span>
+                </div>
+                <span id="positiveSpendingBadge" class="text-xs font-extrabold text-mint bg-mint/10 px-2.5 py-1 rounded-lg">฿0</span>
+              </div>
+
+              <div class="flex flex-row items-center justify-start gap-8 sm:gap-12 px-2">
+                <div class="relative w-32 h-32 flex-shrink-0">
+                  <canvas id="positiveDoughnutChart"></canvas>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-1">
+                    <span id="positiveSpendingMonth" class="text-[11px] text-gray-400 font-bold mb-0.5">-</span>
+                    <span id="positiveSpendingTotal" class="text-base font-bold text-white">฿0</span>
+                  </div>
+                </div>
+                <div id="positiveCategoryLegend" class="flex flex-col gap-3 min-w-0">
+                  <span class="text-xs text-gray-500">กำลังโหลด...</span>
+                </div>
               </div>
             </div>
 
-            <!-- Custom Legend -->
-            <div id="categoryLegend" class="flex flex-col gap-4">
-              <span class="text-xs text-gray-500">กำลังโหลด...</span>
+            <!-- Divider -->
+            <div class="border-t border-slate-700/60"></div>
+
+            <!-- Chart 2: ยอดลบ (-) -->
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.5)]"></span>
+                  <span class="text-xs font-bold text-gray-300">ยอดลบ (-)</span>
+                </div>
+                <span id="negativeSpendingBadge" class="text-xs font-extrabold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg">฿0</span>
+              </div>
+
+              <div class="flex flex-row items-center justify-start gap-8 sm:gap-12 px-2">
+                <div class="relative w-32 h-32 flex-shrink-0">
+                  <canvas id="negativeDoughnutChart"></canvas>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-1">
+                    <span id="negativeSpendingMonth" class="text-[11px] text-gray-400 font-bold mb-0.5">-</span>
+                    <span id="negativeSpendingTotal" class="text-base font-bold text-white">฿0</span>
+                  </div>
+                </div>
+                <div id="negativeCategoryLegend" class="flex flex-col gap-3 min-w-0">
+                  <span class="text-xs text-gray-500">กำลังโหลด...</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -175,9 +211,6 @@
             <button id="toggleFilterBtn"
               class="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-gray-300 flex items-center justify-center transition border border-transparent hover:border-slate-border shadow-sm"><i
                 class="fa-solid fa-filter text-sm"></i></button>
-            <button id="toggleSearchBtn"
-              class="w-10 h-10 rounded-xl bg-slate-700 hover:bg-slate-600 text-gray-300 flex items-center justify-center transition border border-transparent hover:border-slate-border shadow-sm"><i
-                class="fa-solid fa-magnifying-glass text-sm"></i></button>
           </div>
         </div>
 
