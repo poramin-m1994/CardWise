@@ -78,46 +78,23 @@
 
   <!-- Main Dashboard -->
   <main class="flex-grow p-4 md:p-8 flex flex-col">
-    <!-- Global Dashboard Filter -->
-    <div
-      class="w-full max-w-[1400px] mx-auto mb-8 flex justify-between items-center bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50 backdrop-blur-md shadow-lg">
-      <div class="flex items-center gap-3">
-        <div
-          class="w-10 h-10 rounded-xl bg-mint/10 flex items-center justify-center text-mint shadow-[0_0_15px_rgba(74,222,128,0.1)]">
-          <i class="fa-solid fa-calendar-days"></i>
-        </div>
-        <div>
-          <h2 class="text-sm font-bold text-white leading-tight">Dashboard Overview</h2>
-          <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Select Month & Year</p>
-        </div>
-      </div>
-      <div class="relative min-w-[200px]">
-        <select id="globalMonthSelect"
-          class="w-full bg-slate-900 border border-slate-700 text-gray-300 text-sm font-bold rounded-xl py-2.5 pl-4 pr-10 focus:border-mint focus:ring-1 focus:ring-mint transition outline-none appearance-none cursor-pointer">
-          <option value="">กำลังโหลด...</option>
-        </select>
-        <i
-          class="fa-solid fa-chevron-down text-mint absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-xs"></i>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-8 w-full max-w-[1400px] mx-auto flex-grow h-full items-start">
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 sm:gap-8 w-full max-w-[1400px] mx-auto flex-grow h-full items-start">
 
       <!-- Left Panel: Insights (Col Span 5) -->
-      <div class="xl:col-span-5 flex flex-col gap-8 w-full">
+      <div class="xl:col-span-5 flex flex-col gap-6 sm:gap-8 w-full">
 
         <!-- Total Balance -->
-        <div class="pl-2">
-          <h3 class="text-[11px] font-extrabold tracking-[0.15em] text-slate-600 uppercase mb-1">Total Balance</h3>
+        <div class="pl-2 pt-1 sm:pt-2">
+          <h3 class="text-[11px] font-extrabold tracking-[0.15em] text-slate-500 uppercase mb-1">Total Balance</h3>
           <div class="flex items-end gap-4">
-            <h1 id="totalBalanceAmount" class="text-5xl font-extrabold text-mint leading-none">...</h1>
+            <h1 id="totalBalanceAmount" class="text-4xl sm:text-5xl font-extrabold text-mint leading-none">...</h1>
             <span id="totalBalancePercent"
               class="bg-slate-800 text-gray-500 text-xs font-bold px-2 py-1 rounded-md mb-1">...</span>
           </div>
         </div>
 
         <!-- Category Spending Card -->
-        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-border shadow-lg">
+        <div class="bg-slate-800 p-6 sm:p-8 rounded-2xl border border-slate-border shadow-lg">
           <div class="flex items-center gap-3 mb-6">
             <i class="fa-solid fa-chart-pie text-mint"></i>
             <h2 class="text-lg font-bold text-white">Category Spending</h2>
@@ -197,9 +174,71 @@
 
       </div>
 
-      <!-- Right Panel: Activity (Col Span 7) -->
-      <div
-        class="xl:col-span-7 bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-border shadow-lg flex flex-col p-8 overflow-hidden w-full min-h-[600px]">
+      <!-- Right Panel: Activity & Filter (Col Span 7) -->
+      <div class="xl:col-span-7 flex flex-col gap-6 sm:gap-8 w-full">
+
+        <!-- Global Dashboard Filter (Half width on desktop, matching col-span-7) -->
+        <div
+          class="relative z-30 w-full flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50 backdrop-blur-md shadow-lg">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 rounded-xl bg-mint/10 flex items-center justify-center text-mint shadow-[0_0_15px_rgba(74,222,128,0.1)] flex-shrink-0">
+              <i class="fa-solid fa-calendar-days"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold text-white leading-tight">Dashboard Overview</h2>
+              <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Select Month & Year</p>
+            </div>
+          </div>
+          <div class="relative flex items-center gap-2 w-full sm:w-auto justify-end">
+            <!-- Hidden input for backwards compatibility & value storage -->
+            <input type="hidden" id="globalMonthSelect" value="" />
+
+            <!-- Datepicker Trigger Container -->
+            <div class="relative flex-grow sm:flex-grow-0">
+              <button id="monthPickerTrigger" type="button"
+                class="w-full sm:w-auto bg-slate-900 border border-slate-700 hover:border-mint text-gray-200 text-xs sm:text-sm font-bold rounded-xl py-2.5 px-3.5 flex items-center justify-between sm:justify-start gap-2.5 focus:border-mint focus:ring-1 focus:ring-mint transition cursor-pointer shadow-sm">
+                <div class="flex items-center gap-2">
+                  <i class="fa-regular fa-calendar-days text-mint text-xs"></i>
+                  <span id="monthPickerDisplay" class="whitespace-nowrap">กำลังโหลด...</span>
+                </div>
+                <i class="fa-solid fa-chevron-down text-gray-400 text-[10px] ml-1 transition-transform duration-200" id="monthPickerArrow"></i>
+              </button>
+
+              <!-- Datepicker Popover Dropdown (Month & Year) -->
+              <div id="monthPickerPopover"
+                class="hidden absolute right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl z-50">
+                
+                <!-- Year Navigator -->
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                  <button id="prevYearBtn" type="button"
+                    class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white flex items-center justify-center transition text-xs cursor-pointer">
+                    <i class="fa-solid fa-chevron-left"></i>
+                  </button>
+                  <span id="pickerYearDisplay" class="text-sm font-extrabold text-white">...</span>
+                  <button id="nextYearBtn" type="button"
+                    class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-300 hover:text-white flex items-center justify-center transition text-xs cursor-pointer">
+                    <i class="fa-solid fa-chevron-right"></i>
+                  </button>
+                </div>
+
+                <!-- Months Grid (12 Months) -->
+                <div class="grid grid-cols-3 gap-2" id="monthGrid"></div>
+              </div>
+            </div>
+
+            <!-- Search Button (ปุ่มค้นหา) -->
+            <button id="searchDashboardBtn" type="button"
+              class="bg-mint hover:bg-mint-hover text-slate-900 text-xs sm:text-sm font-extrabold px-4 py-2.5 rounded-xl transition shadow-[0_2px_12px_rgba(74,222,128,0.25)] flex items-center gap-2 cursor-pointer whitespace-nowrap active:scale-95 flex-shrink-0">
+              <i class="fa-solid fa-magnifying-glass text-xs"></i>
+              <span>ค้นหา</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Transaction History Card -->
+        <div
+          class="bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-border shadow-lg flex flex-col p-6 sm:p-8 overflow-hidden w-full min-h-[600px]">
 
         <!-- Header -->
         <div class="flex items-start justify-between mb-6">
@@ -264,7 +303,9 @@
       </div>
 
     </div>
-  </main>
+
+  </div>
+</main>
 
   <!-- Floating Action Button -->
   <button id="fab"

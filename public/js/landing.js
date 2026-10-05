@@ -75,41 +75,173 @@ const CHART_COLORS = ['#4ade80', '#34d399', '#2dd4bf', '#22d3ee', '#38bdf8', '#8
 const POSITIVE_COLORS = ['#4ade80', '#34d399', '#2dd4bf', '#22d3ee', '#38bdf8', '#818cf8', '#a78bfa'];
 const NEGATIVE_COLORS = ['#f87171', '#fb7185', '#f43f5e', '#fb923c', '#f59e0b', '#ec4899', '#c084fc'];
 
-function initGlobalFilter(expenses) {
-    const select = document.getElementById('globalMonthSelect');
-    if (!select) return;
+let allExpensesCache = [];
+let selectedYear = new Date().getFullYear();
+let selectedMonth = new Date().getMonth() + 1;
+let viewingYear = selectedYear;
 
-    // Group available months from data
-    const monthMap = {};
+const THAI_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const THAI_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+function initGlobalFilter(expenses) {
+    allExpensesCache = expenses;
+
+    const hiddenInput = document.getElementById('globalMonthSelect');
+    const displaySpan = document.getElementById('monthPickerDisplay');
+    const triggerBtn = document.getElementById('monthPickerTrigger');
+    const popover = document.getElementById('monthPickerPopover');
+    const arrowIcon = document.getElementById('monthPickerArrow');
+    const prevYearBtn = document.getElementById('prevYearBtn');
+    const nextYearBtn = document.getElementById('nextYearBtn');
+    const yearDisplay = document.getElementById('pickerYearDisplay');
+    const monthGrid = document.getElementById('monthGrid');
+    const searchBtn = document.getElementById('searchDashboardBtn');
+
+    if (!hiddenInput || !triggerBtn) return;
+
+    // Available months in dataset
+    const availableMonthKeys = new Set();
     expenses.forEach(item => {
         const d = parseSheetDate(item.date);
         if (!d) return;
-        const key = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-        if (!monthMap[key]) {
-            monthMap[key] = d.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-        }
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        availableMonthKeys.add(key);
     });
 
-    const sortedKeys = Object.keys(monthMap).sort().reverse();
-    select.innerHTML = sortedKeys.map(k => `<option value="${k}">${monthMap[k]}</option>`).join('');
-
-    // Default to current month if available, else latest
+    // Default to current month or latest available
     const today = new Date();
-    const currentKey = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}`;
-    
-    if (sortedKeys.includes(currentKey)) {
-        select.value = currentKey;
-    } else if (sortedKeys.length > 0) {
-        select.value = sortedKeys[0];
+    const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+    if (availableMonthKeys.has(currentKey)) {
+        selectedYear = today.getFullYear();
+        selectedMonth = today.getMonth() + 1;
+    } else if (availableMonthKeys.size > 0) {
+        const sorted = Array.from(availableMonthKeys).sort().reverse();
+        const [y, m] = sorted[0].split('-').map(Number);
+        selectedYear = y;
+        selectedMonth = m;
+    } else {
+        selectedYear = today.getFullYear();
+        selectedMonth = today.getMonth() + 1;
+    }
+
+    viewingYear = selectedYear;
+
+    const initialKey = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+    hiddenInput.value = initialKey;
+    if (displaySpan) {
+        displaySpan.textContent = `${THAI_MONTHS_FULL[selectedMonth - 1]} ${selectedYear + 543}`;
     }
 
     // Initial Render
-    refreshDashboard(expenses, select.value);
+    refreshDashboard(expenses, initialKey);
 
-    // Event Listener
-    select.addEventListener('change', () => {
-        refreshDashboard(expenses, select.value);
+    // Month Grid Render
+    function renderMonthGrid() {
+        if (!yearDisplay || !monthGrid) return;
+        yearDisplay.textContent = `${viewingYear + 543}`;
+        monthGrid.innerHTML = '';
+
+        for (let m = 1; m <= 12; m++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isSelected = (viewingYear === selectedYear && m === selectedMonth);
+            const monthKey = `${viewingYear}-${String(m).padStart(2, '0')}`;
+            const hasData = availableMonthKeys.has(monthKey);
+
+            btn.className = isSelected
+                ? 'py-2 px-1 rounded-xl text-xs font-extrabold bg-mint text-slate-900 shadow-md transition cursor-pointer'
+                : 'py-2 px-1 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-slate-800 transition cursor-pointer ' + (hasData ? 'relative' : 'opacity-70');
+
+            btn.textContent = THAI_MONTHS_SHORT[m - 1];
+
+            if (hasData && !isSelected) {
+                const dot = document.createElement('span');
+                dot.className = 'absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-mint/70';
+                btn.appendChild(dot);
+            }
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedYear = viewingYear;
+                selectedMonth = m;
+                const newKey = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+                hiddenInput.value = newKey;
+                if (displaySpan) {
+                    displaySpan.textContent = `${THAI_MONTHS_FULL[selectedMonth - 1]} ${selectedYear + 543}`;
+                }
+                closePopover();
+                // NOTE: DO NOT call refreshDashboard here! User must click Search button to execute.
+            });
+
+            monthGrid.appendChild(btn);
+        }
+    }
+
+    function openPopover() {
+        if (!popover) return;
+        viewingYear = selectedYear;
+        renderMonthGrid();
+        popover.classList.remove('hidden');
+        if (arrowIcon) arrowIcon.classList.add('rotate-180');
+    }
+
+    function closePopover() {
+        if (!popover) return;
+        popover.classList.add('hidden');
+        if (arrowIcon) arrowIcon.classList.remove('rotate-180');
+    }
+
+    triggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (popover && popover.classList.contains('hidden')) {
+            openPopover();
+        } else {
+            closePopover();
+        }
     });
+
+    if (prevYearBtn) {
+        prevYearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            viewingYear--;
+            renderMonthGrid();
+        });
+    }
+
+    if (nextYearBtn) {
+        nextYearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            viewingYear++;
+            renderMonthGrid();
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (popover && !popover.contains(e.target) && !triggerBtn.contains(e.target)) {
+            closePopover();
+        }
+    });
+
+    // Search Button Click -> Executes Search
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            const key = hiddenInput.value || `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+            
+            searchBtn.disabled = true;
+            const originalContent = searchBtn.innerHTML;
+            searchBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> <span>ค้นหา</span>';
+
+            try {
+                refreshDashboard(allExpensesCache, key);
+            } finally {
+                setTimeout(() => {
+                    searchBtn.disabled = false;
+                    searchBtn.innerHTML = originalContent;
+                }, 200);
+            }
+        });
+    }
 }
 
 function refreshDashboard(allExpenses, monthKey) {
@@ -255,10 +387,16 @@ function initTransactionModal() {
             
             // Refresh Dashboard
             const freshExpenses = await fetchExpenses();
-            updateDashboardTotals(freshExpenses);
-            renderTransactionHistory(freshExpenses);
-            updateCategorySpending(freshExpenses);
-            updateMonthlyInsights(freshExpenses);
+            allExpensesCache = freshExpenses;
+            const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
+            if (currentMonthVal) {
+                refreshDashboard(freshExpenses, currentMonthVal);
+            } else {
+                updateDashboardTotals(freshExpenses);
+                renderTransactionHistory(freshExpenses);
+                updateCategorySpending(freshExpenses);
+                updateMonthlyInsights(freshExpenses);
+            }
 
         } catch (err) {
             console.error("Error posting expense:", err);
