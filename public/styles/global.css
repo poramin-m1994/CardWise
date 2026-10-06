@@ -1,13 +1,14 @@
 /* global.css */
-@import url('https://fonts.googleapis.com/css2?family=Kanit&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit&display=swap'); /* fallback */
 
 body {
-  font-family: 'Kanit', sans-serif;
-  @apply bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen;
+  font-family: 'Manrope', 'Kanit', sans-serif;
+  @apply bg-[#0b1326] text-white min-h-screen;
 }
 
 nav {
-  @apply bg-white dark:bg-gray-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center;
+  @apply bg-[#15223c] shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center border-b border-[#1e293b];
 }
 
 button {
@@ -15,25 +16,45 @@ button {
 }
 
 input, select, textarea {
-  @apply border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4CAF50] dark:bg-gray-700 dark:text-white w-full;
+  @apply border border-[#1e3358] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4ade80] bg-[#0b1326] text-white w-full;
 }
 
 h1, h2 {
-  @apply text-[#1D3557] dark:text-white;
+  @apply text-white;
 }
 
 label {
-  @apply text-gray-600 dark:text-gray-300 mb-1 block;
+  @apply text-gray-300 mb-1 block;
 }
 
 #themeLabel {
-  @apply text-sm underline text-gray-600 dark:text-gray-300;
+  @apply text-sm underline text-gray-400;
 }
 
 .loading-overlay {
-  @apply fixed inset-0 bg-white dark:bg-gray-900 bg-opacity-90 flex flex-col items-center justify-center z-50;
+  @apply fixed inset-0 bg-[#0b1326] bg-opacity-90 flex flex-col items-center justify-center z-50;
 }
 
 .rounded-card {
-  @apply bg-white dark:bg-gray-800 rounded-2xl shadow-lg;
+  @apply bg-[#15223c] rounded-2xl shadow-lg border border-[#1e3358];
+}
+
+/* Modal styles */
+.modal-overlay {
+  @apply fixed inset-0 bg-[#0b1326] bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-[1000] opacity-0 pointer-events-none transition-opacity duration-300;
+}
+.modal-overlay.active {
+  @apply opacity-100 pointer-events-auto;
+}
+.modal-content {
+  @apply bg-[#15223c] p-10 rounded-2xl border border-[#1e3358] w-full max-w-md transform translate-y-5 transition-transform duration-300 shadow-2xl;
+}
+.modal-overlay.active .modal-content {
+  @apply translate-y-0;
+}
+.pill {
+  @apply px-4 py-2 bg-[#0b1326] border border-[#1e3358] rounded-full text-sm text-gray-300 cursor-pointer transition hover:bg-green-500/10 hover:border-[#4ade80] hover:text-[#4ade80];
+}
+.pill.selected {
+  @apply bg-green-500/10 border-[#4ade80] text-[#4ade80];
 }

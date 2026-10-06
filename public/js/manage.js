@@ -1,51 +1,148 @@
 import { applyTheme, toggleDarkMode } from './theme.js';
 import { checkLogin, logout } from './auth.js';
+import { fetchSheet, SHEET_URL, setCache, CACHE_KEYS } from './sheets.js';
 
-const URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
-
-document.getElementById('themeLabel').addEventListener('click', toggleDarkMode);
-document.querySelector('button[onclick="logout()"]').addEventListener('click', logout);
+document.getElementById('themeLabel')?.addEventListener('click', toggleDarkMode);
+document.querySelector('button[onclick="logout()"]')?.addEventListener('click', logout);
 
 // ตรวจสอบ session และ theme
 checkLogin();
 applyTheme();
 
-const loading = document.getElementById('loadingScreen');
-const content = document.getElementById('mainContent');
+const loadingOverlay = document.getElementById('loadingOverlay');
 
-async function fetchList(sheetName) {
-  const res = await fetch(`${URL}?sheet=${sheetName}`);
-  return await res.json();
+function toggleLoading(show) {
+    if (!loadingOverlay) return;
+    if (show) {
+        loadingOverlay.classList.remove('opacity-0', 'pointer-events-none');
+    } else {
+        loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
+    }
 }
 
-async function renderLists() {
-  const categories = await fetchList("Categories");
-  const cards = await fetchList("Cards");
+const categoryIcons = {
+    "อาหาร": "fa-utensils",
+    "Food": "fa-utensils",
+    "Dining": "fa-utensils",
+    "เดินทาง": "fa-car",
+    "Transport": "fa-car",
+    "Travel": "fa-car",
+    "ช้อปปิ้ง": "fa-bag-shopping",
+    "Shopping": "fa-bag-shopping",
+    "บันเทิง": "fa-gamepad",
+    "Entertainment": "fa-gamepad",
+    "ที่พัก": "fa-house",
+    "Housing": "fa-house",
+    "Rent": "fa-house",
+    "สุขภาพ": "fa-heart-pulse",
+    "Health": "fa-heart-pulse",
+    "รายได้": "fa-money-bill-wave",
+    "Income": "fa-money-bill-wave"
+};
 
-  document.getElementById('categoryList').innerHTML = categories.map(c =>
-    `<li class="flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-md">
-      <span>${c.name}</span>
-      <button onclick="deleteItem('category','${c.name}')" class="text-red-600 dark:text-red-400 hover:underline text-sm">ลบ</button>
-    </li>`).join('');
+function getIconForCategory(category) {
+    return categoryIcons[category] || "fa-tag";
+}
 
-  document.getElementById('cardList').innerHTML = cards.map(c =>
-    `<li class="flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-md">
-      <span>${c.name}</span>
-      <button onclick="deleteItem('card','${c.name}')" class="text-red-600 dark:text-red-400 hover:underline text-sm">ลบ</button>
-    </li>`).join('');
+function updateCategoryDOM(categories) {
+    const categoryList = document.getElementById('categoryList');
+    const categoryCountBadge = document.getElementById('categoryCountBadge');
 
-  loading.style.display = 'none';
-  content.classList.remove('hidden');
+    if (categoryCountBadge && Array.isArray(categories)) {
+        categoryCountBadge.textContent = `${categories.length} รายการ`;
+    }
+
+    if (categoryList) {
+        if (!categories || categories.length === 0) {
+            categoryList.innerHTML = '<div class="text-center py-8 text-xs text-slate-400 font-medium">ยังไม่มีหมวดหมู่</div>';
+        } else {
+            categoryList.innerHTML = categories.map(c => {
+                const icon = getIconForCategory(c.name);
+                return `
+                <div class="flex justify-between items-center bg-surface-0/70 hover:bg-surface-2 transition-all duration-200 px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl group border border-slate-border/50 hover:border-mint/30">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-8 h-8 rounded-xl bg-surface-2 group-hover:bg-mint/10 text-mint flex items-center justify-center text-xs transition-colors flex-shrink-0 border border-slate-border/50">
+                            <i class="fa-solid ${icon}"></i>
+                        </div>
+                        <span class="text-xs sm:text-sm font-bold text-white truncate">${c.name}</span>
+                    </div>
+                    <button onclick="deleteItem('category','${c.name}')" type="button" class="text-xs font-bold text-slate-400 hover:text-coral transition-colors px-2.5 py-1.5 rounded-xl hover:bg-coral-dim cursor-pointer flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                        <span class="hidden sm:inline">ลบ</span>
+                    </button>
+                </div>
+            `;}).join('');
+        }
+    }
+}
+
+function updateCardDOM(cards) {
+    const cardList = document.getElementById('cardList');
+    const cardCountBadge = document.getElementById('cardCountBadge');
+
+    if (cardCountBadge && Array.isArray(cards)) {
+        cardCountBadge.textContent = `${cards.length} ใบ`;
+    }
+
+    if (cardList) {
+        if (!cards || cards.length === 0) {
+            cardList.innerHTML = '<div class="text-center py-8 text-xs text-slate-400 font-medium">ยังไม่มีข้อมูลบัตร</div>';
+        } else {
+            cardList.innerHTML = cards.map(c => `
+                <div class="flex justify-between items-center bg-surface-0/70 hover:bg-surface-2 transition-all duration-200 px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl group border border-slate-border/50 hover:border-indigo-400/30">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-8 h-8 rounded-xl bg-surface-2 group-hover:bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xs transition-colors flex-shrink-0 border border-slate-border/50">
+                            <i class="fa-solid fa-credit-card"></i>
+                        </div>
+                        <span class="text-xs sm:text-sm font-bold text-white truncate">${c.name}</span>
+                    </div>
+                    <button onclick="deleteItem('card','${c.name}')" type="button" class="text-xs font-bold text-slate-400 hover:text-coral transition-colors px-2.5 py-1.5 rounded-xl hover:bg-coral-dim cursor-pointer flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                        <span class="hidden sm:inline">ลบ</span>
+                    </button>
+                </div>
+            `).join('');
+        }
+    }
+}
+
+async function renderLists(showOverlay = false) {
+  if (showOverlay) toggleLoading(true);
+  try {
+    // SWR fetch with instant cache return and background revalidation
+    const categories = await fetchSheet("Categories", {
+        onFreshData: updateCategoryDOM,
+        forceRefresh: showOverlay
+    });
+    updateCategoryDOM(categories);
+
+    const cards = await fetchSheet("Cards", {
+        onFreshData: updateCardDOM,
+        forceRefresh: showOverlay
+    });
+    updateCardDOM(cards);
+
+  } catch (error) {
+    console.error("Error rendering lists:", error);
+    showToast("ไม่สามารถโหลดข้อมูลได้", "error");
+  } finally {
+    if (showOverlay) toggleLoading(false);
+  }
 }
 
 window.addItem = async function(type) {
   const inputId = type === 'category' ? 'newCategory' : 'newCard';
-  const name = document.getElementById(inputId).value.trim();
-  if (!name) return alert('กรุณากรอกชื่อ');
+  const inputElem = document.getElementById(inputId);
+  const name = inputElem.value.trim();
+  
+  if (!name) {
+    showToast("กรุณาระบุชื่อที่ต้องการเพิ่ม", "error");
+    return;
+  }
 
-  loading.style.display = 'flex';
+  toggleLoading(true);
   try {
-    await fetch(URL, {
+    await fetch(SHEET_URL, {
       method: 'POST',
       body: JSON.stringify({
         action: 'add',
@@ -53,21 +150,21 @@ window.addItem = async function(type) {
         name
       })
     });
-    document.getElementById(inputId).value = '';
-    showToast("✅ เพิ่มข้อมูลเรียบร้อยแล้ว!");
+    inputElem.value = '';
+    showToast("เพิ่มข้อมูลเรียบร้อยแล้ว!");
+    await renderLists(true);
   } catch (error) {
-    showToast("❌ เกิดข้อผิดพลาดในการเพิ่มข้อมูล");
+    showToast("เกิดข้อผิดพลาดในการเพิ่มข้อมูล", "error");
+    toggleLoading(false);
   }
-  loading.style.display = 'none';
-  renderLists();
 };
 
 window.deleteItem = async function(type, name) {
-  if (!confirm(`ลบ "${name}" ใช่ไหม?`)) return;
+  if (!confirm(`ยืนยันการลบ "${name}" ?`)) return;
 
-  loading.style.display = 'flex';
+  toggleLoading(true);
   try {
-    const res = await fetch(URL, {
+    const res = await fetch(SHEET_URL, {
       method: 'POST',
       body: JSON.stringify({
         action: 'delete',
@@ -77,28 +174,62 @@ window.deleteItem = async function(type, name) {
     });
     const text = await res.text();
     if (text === 'Deleted') {
-      showToast("✅ ลบข้อมูลเรียบร้อยแล้ว");
+      showToast("ลบข้อมูลเรียบร้อยแล้ว");
+      await renderLists(true);
     } else {
-      showToast("❌ ลบไม่สำเร็จ: " + text);
+      showToast("ลบไม่สำเร็จ: " + text, "error");
+      toggleLoading(false);
     }
   } catch (error) {
-    showToast("❌ เกิดข้อผิดพลาดในการลบข้อมูล");
+    showToast("เกิดข้อผิดพลาดในการลบข้อมูล", "error");
+    toggleLoading(false);
   }
-  loading.style.display = 'none';
-  renderLists();
 };
 
-document.addEventListener('DOMContentLoaded', renderLists);
+document.addEventListener('DOMContentLoaded', () => {
+    // Initial instant render from cache without blocking loading overlay
+    renderLists(false);
 
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.classList.remove('opacity-0');
-  toast.classList.add('opacity-100');
+    // Support Enter key on input fields
+    document.getElementById('newCategory')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            window.addItem('category');
+        }
+    });
 
-  // ซ่อนหลัง 3 วินาที
-  setTimeout(() => {
-    toast.classList.remove('opacity-100');
-    toast.classList.add('opacity-0');
-  }, 3000);
+    document.getElementById('newCard')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            window.addItem('card');
+        }
+    });
+});
+
+function showToast(message, type = "success") {
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+
+    if (!toast || !toastMsg) return;
+
+    toastMsg.textContent = message;
+    
+    if (type === "error") {
+        toast.classList.remove('border-l-mint');
+        toast.classList.add('border-l-coral');
+        toastIcon.className = "fa-solid fa-circle-exclamation text-coral";
+    } else {
+        toast.classList.add('border-l-mint');
+        toast.classList.remove('border-l-coral');
+        toastIcon.className = "fa-solid fa-circle-check text-mint";
+    }
+
+    toast.classList.remove('opacity-0', '-translate-y-10');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-10');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+    }, 3000);
 }

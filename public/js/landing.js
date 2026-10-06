@@ -1,9 +1,1151 @@
 import { applyTheme, toggleDarkMode } from './theme.js';
 import { checkLogin, logout } from './auth.js';
+import { fetchSheet, fetchExpenses, postExpense, getLastSyncTime } from './sheets.js';
 
-document.getElementById('themeLabel').addEventListener('click', toggleDarkMode);
-document.querySelector('button[onclick="logout()"]').addEventListener('click', logout);
+document.getElementById('themeLabel')?.addEventListener('click', toggleDarkMode);
+document.querySelector('button[onclick="logout()"]')?.addEventListener('click', logout);
 
 // เช็ค session และโหลดธีม
 checkLogin();
 applyTheme();
+
+function updateSyncStatus(isSyncing = false) {
+    const syncText = document.getElementById('syncStatusText');
+    const syncIcon = document.getElementById('syncIcon');
+    const syncDot = document.getElementById('syncStatusDot');
+
+    if (!syncText || !syncIcon) return;
+
+    if (isSyncing) {
+        syncIcon.classList.add('fa-spin');
+        syncText.textContent = 'กำลังซิงค์...';
+        if (syncDot) syncDot.classList.add('indicator-pulse');
+    } else {
+        syncIcon.classList.remove('fa-spin');
+        const lastTime = getLastSyncTime();
+        syncText.textContent = lastTime ? `ซิงค์ ${lastTime}` : 'ซิงค์แล้ว';
+        if (syncDot) syncDot.classList.remove('indicator-pulse');
+    }
+}
+
+function populateCards(cards) {
+    const cardSelect = document.getElementById('cardSelect');
+    if (cardSelect && Array.isArray(cards)) {
+        cardSelect.innerHTML = '<option value="">เลือกบัตร</option>';
+        cards.forEach(card => {
+            const option = document.createElement('option');
+            option.value = card.name;
+            option.textContent = card.name;
+            cardSelect.appendChild(option);
+        });
+    }
+}
+
+function populateCategories(categories) {
+    const categoryContainer = document.getElementById('categoryContainer');
+    if (categoryContainer && Array.isArray(categories)) {
+        categoryContainer.innerHTML = '';
+        categories.forEach((cat, index) => {
+            const pill = document.createElement('div');
+            pill.textContent = cat.name;
+            pill.dataset.value = cat.name;
+            
+            const defaultClass = "px-3.5 py-2 bg-surface-0 border border-slate-border text-slate-300 rounded-xl text-xs font-semibold cursor-pointer hover:bg-surface-2 hover:border-mint/40 transition-all flex items-center gap-2 category-pill";
+            const selectedClass = "px-3.5 py-2 bg-mint text-void font-extrabold rounded-xl text-xs cursor-pointer shadow-glow-mint flex items-center gap-2 category-pill selected";
+            
+            pill.className = index === 0 ? selectedClass : defaultClass;
+
+            pill.addEventListener('click', () => {
+                document.querySelectorAll('.category-pill').forEach(p => {
+                    p.className = defaultClass;
+                    p.classList.remove('selected');
+                });
+                pill.className = selectedClass;
+            });
+
+            categoryContainer.appendChild(pill);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    updateSyncStatus(true);
+    try {
+        // 1. Fetch Cards & Categories with SWR (Instant render from cache + background revalidate)
+        const cards = await fetchSheet("Cards", {
+            onFreshData: (freshCards) => {
+                populateCards(freshCards);
+            }
+        });
+        populateCards(cards);
+
+        const categories = await fetchSheet("Categories", {
+            onFreshData: (freshCats) => {
+                populateCategories(freshCats);
+            }
+        });
+        populateCategories(categories);
+
+        // 2. Fetch Expenses with SWR (Instant render from cache + background revalidate)
+        const expenses = await fetchExpenses({
+            onFreshData: (freshExpenses) => {
+                allExpensesCache = freshExpenses;
+                const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
+                if (currentMonthVal) {
+                    refreshDashboard(freshExpenses, currentMonthVal);
+                }
+                updateSyncStatus(false);
+            }
+        });
+
+        // Setup Global Month/Year Filter (Renders initial dashboard immediately)
+        initGlobalFilter(expenses);
+        
+        // Setup Filter Bar (for search/category/card)
+        initFilterBar();
+
+        // Setup Transaction Pagination
+        initTransactionPagination();
+
+        // Initialize Modal Logic
+        initTransactionModal();
+
+        // Bind Force Refresh button
+        document.getElementById('syncDashboardBtn')?.addEventListener('click', async () => {
+            updateSyncStatus(true);
+            try {
+                const fresh = await fetchExpenses({ forceRefresh: true });
+                allExpensesCache = fresh;
+                const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
+                if (currentMonthVal) {
+                    refreshDashboard(fresh, currentMonthVal);
+                }
+                await fetchSheet("Cards", { forceRefresh: true, onFreshData: populateCards });
+                await fetchSheet("Categories", { forceRefresh: true, onFreshData: populateCategories });
+                showToast("ซิงค์ข้อมูลล่าสุดเรียบร้อย!");
+            } catch (err) {
+                console.error("Force sync failed:", err);
+                showToast("ไม่สามารถซิงค์ข้อมูลได้", "error");
+            } finally {
+                updateSyncStatus(false);
+            }
+        });
+
+    } catch (err) {
+        console.error("Error loading dashboard data:", err);
+    } finally {
+        updateSyncStatus(false);
+    }
+});
+
+let positiveDoughnutChart;
+let negativeDoughnutChart;
+let barChart;
+let loadedExpenses = []; // Store current month's expenses for sub-filtering
+let currentFilteredTransactions = []; // Store currently filtered transactions
+let transactionCurrentPage = 1;
+let transactionPageSize = 10;
+const CHART_COLORS = ['#4ade80', '#34d399', '#2dd4bf', '#22d3ee', '#38bdf8', '#818cf8', '#fbbf24', '#f87171', '#94a3b8'];
+const POSITIVE_COLORS = ['#4ade80', '#34d399', '#2dd4bf', '#22d3ee', '#38bdf8', '#818cf8', '#a78bfa'];
+const NEGATIVE_COLORS = ['#f87171', '#fb7185', '#f43f5e', '#fb923c', '#f59e0b', '#ec4899', '#c084fc'];
+
+let allExpensesCache = [];
+let selectedYear = new Date().getFullYear();
+let selectedMonth = new Date().getMonth() + 1;
+let viewingYear = selectedYear;
+
+const THAI_MONTHS_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const THAI_MONTHS_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+function initGlobalFilter(expenses) {
+    allExpensesCache = expenses;
+
+    const hiddenInput = document.getElementById('globalMonthSelect');
+    const displaySpan = document.getElementById('monthPickerDisplay');
+    const triggerBtn = document.getElementById('monthPickerTrigger');
+    const popover = document.getElementById('monthPickerPopover');
+    const arrowIcon = document.getElementById('monthPickerArrow');
+    const prevYearBtn = document.getElementById('prevYearBtn');
+    const nextYearBtn = document.getElementById('nextYearBtn');
+    const yearDisplay = document.getElementById('pickerYearDisplay');
+    const monthGrid = document.getElementById('monthGrid');
+    const searchBtn = document.getElementById('searchDashboardBtn');
+
+    if (!hiddenInput || !triggerBtn) return;
+
+    // Available months in dataset
+    const availableMonthKeys = new Set();
+    expenses.forEach(item => {
+        const d = parseSheetDate(item.date);
+        if (!d) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        availableMonthKeys.add(key);
+    });
+
+    // Default to current month or latest available
+    const today = new Date();
+    const currentKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+    if (availableMonthKeys.has(currentKey)) {
+        selectedYear = today.getFullYear();
+        selectedMonth = today.getMonth() + 1;
+    } else if (availableMonthKeys.size > 0) {
+        const sorted = Array.from(availableMonthKeys).sort().reverse();
+        const [y, m] = sorted[0].split('-').map(Number);
+        selectedYear = y;
+        selectedMonth = m;
+    } else {
+        selectedYear = today.getFullYear();
+        selectedMonth = today.getMonth() + 1;
+    }
+
+    viewingYear = selectedYear;
+
+    const initialKey = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+    hiddenInput.value = initialKey;
+    if (displaySpan) {
+        displaySpan.textContent = `${THAI_MONTHS_FULL[selectedMonth - 1]} ${selectedYear + 543}`;
+    }
+
+    // Initial Render
+    refreshDashboard(expenses, initialKey);
+
+    // Month Grid Render
+    function renderMonthGrid() {
+        if (!yearDisplay || !monthGrid) return;
+        yearDisplay.textContent = `${viewingYear + 543}`;
+        monthGrid.innerHTML = '';
+
+        for (let m = 1; m <= 12; m++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            const isSelected = (viewingYear === selectedYear && m === selectedMonth);
+            const monthKey = `${viewingYear}-${String(m).padStart(2, '0')}`;
+            const hasData = availableMonthKeys.has(monthKey);
+
+            btn.className = isSelected
+                ? 'py-2 px-1 rounded-xl text-xs font-extrabold bg-mint text-slate-900 shadow-md transition cursor-pointer'
+                : 'py-2 px-1 rounded-xl text-xs font-bold text-gray-300 hover:text-white hover:bg-slate-800 transition cursor-pointer ' + (hasData ? 'relative' : 'opacity-70');
+
+            btn.textContent = THAI_MONTHS_SHORT[m - 1];
+
+            if (hasData && !isSelected) {
+                const dot = document.createElement('span');
+                dot.className = 'absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-mint/70';
+                btn.appendChild(dot);
+            }
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedYear = viewingYear;
+                selectedMonth = m;
+                const newKey = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+                hiddenInput.value = newKey;
+                if (displaySpan) {
+                    displaySpan.textContent = `${THAI_MONTHS_FULL[selectedMonth - 1]} ${selectedYear + 543}`;
+                }
+                closePopover();
+                // NOTE: DO NOT call refreshDashboard here! User must click Search button to execute.
+            });
+
+            monthGrid.appendChild(btn);
+        }
+    }
+
+    function openPopover() {
+        if (!popover) return;
+        viewingYear = selectedYear;
+        renderMonthGrid();
+        popover.classList.remove('hidden');
+        if (arrowIcon) arrowIcon.classList.add('rotate-180');
+    }
+
+    function closePopover() {
+        if (!popover) return;
+        popover.classList.add('hidden');
+        if (arrowIcon) arrowIcon.classList.remove('rotate-180');
+    }
+
+    triggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (popover && popover.classList.contains('hidden')) {
+            openPopover();
+        } else {
+            closePopover();
+        }
+    });
+
+    if (prevYearBtn) {
+        prevYearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            viewingYear--;
+            renderMonthGrid();
+        });
+    }
+
+    if (nextYearBtn) {
+        nextYearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            viewingYear++;
+            renderMonthGrid();
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (popover && !popover.contains(e.target) && !triggerBtn.contains(e.target)) {
+            closePopover();
+        }
+    });
+
+    // Search Button Click -> Executes Search
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            const key = hiddenInput.value || `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+            
+            searchBtn.disabled = true;
+            const originalContent = searchBtn.innerHTML;
+            searchBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xs"></i> <span>ค้นหา</span>';
+
+            try {
+                refreshDashboard(allExpensesCache, key);
+            } finally {
+                setTimeout(() => {
+                    searchBtn.disabled = false;
+                    searchBtn.innerHTML = originalContent;
+                }, 200);
+            }
+        });
+    }
+}
+
+function refreshDashboard(allExpenses, monthKey) {
+    const [year, month] = monthKey.split('-').map(Number);
+    
+    // Update all components with selected month/year
+    updateDashboardTotals(allExpenses, month, year);
+    renderTransactionHistory(allExpenses, month, year);
+    updateCategorySpending(allExpenses, month, year);
+    updateMonthlyInsights(allExpenses, month, year);
+}
+
+function initFilterBar() {
+    const filterPanel = document.getElementById('filterPanel');
+    const toggleFilterBtn = document.getElementById('toggleFilterBtn');
+    
+    if (!filterPanel || !toggleFilterBtn) return;
+
+    const toggle = () => {
+        if (filterPanel.classList.contains('max-h-0')) {
+            filterPanel.classList.remove('max-h-0', 'opacity-0', 'mb-0');
+            filterPanel.classList.add('max-h-96', 'opacity-100', 'mb-6');
+        } else {
+            filterPanel.classList.add('max-h-0', 'opacity-0', 'mb-0');
+            filterPanel.classList.remove('max-h-96', 'opacity-100', 'mb-6');
+        }
+    };
+
+    toggleFilterBtn.addEventListener('click', toggle);
+
+    // Setup filter listeners
+    const searchInput = document.getElementById('historySearch');
+    const catFilter = document.getElementById('historyCategoryFilter');
+    const cardFilter = document.getElementById('historyCardFilter');
+
+    const runFilter = () => {
+        const query = (searchInput.value || "").toLowerCase();
+        const cat = catFilter.value;
+        const card = cardFilter.value;
+
+        const filtered = loadedExpenses.filter(item => {
+            const matchesSearch = !query || (item.note && item.note.toLowerCase().includes(query)) || (item.category && item.category.toLowerCase().includes(query));
+            const matchesCat = !cat || item.category === cat;
+            const matchesCard = !card || item.card === card;
+            return matchesSearch && matchesCat && matchesCard;
+        });
+
+        transactionCurrentPage = 1;
+        renderTransactionList(filtered);
+    };
+
+    searchInput.addEventListener('input', runFilter);
+    catFilter.addEventListener('change', runFilter);
+    cardFilter.addEventListener('change', runFilter);
+}
+
+function updateFilterDropdowns(expenses) {
+    const catFilter = document.getElementById('historyCategoryFilter');
+    const cardFilter = document.getElementById('historyCardFilter');
+    
+    if (!catFilter || !cardFilter) return;
+
+    const categories = [...new Set(expenses.map(e => e.category))].filter(Boolean).sort();
+    const cards = [...new Set(expenses.map(e => e.card))].filter(Boolean).sort();
+
+    catFilter.innerHTML = '<option value="">ทุกหมวดหมู่</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    cardFilter.innerHTML = '<option value="">ทุกบัตร</option>' + cards.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+let selectedCategory = '';
+
+function initTransactionModal() {
+    const modal = document.getElementById('expenseModal');
+    const fab = document.getElementById('fab');
+    const closeBtn = document.getElementById('closeModal');
+    const recordBtn = document.getElementById('recordExpense');
+    const dateInput = document.getElementById('modalDate');
+
+    if (!modal || !fab || !closeBtn || !recordBtn) return;
+
+    // Set default date to today (yyyy-mm-dd for input type="date")
+    if (dateInput) {
+        dateInput.value = dayjs().format('YYYY-MM-DD');
+    }
+
+    const toggleModal = () => {
+        if (modal.classList.contains('opacity-0')) {
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.firstElementChild.classList.remove('translate-y-5');
+        } else {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.firstElementChild.classList.add('translate-y-5');
+        }
+    };
+
+    fab.addEventListener('click', toggleModal);
+    closeBtn.addEventListener('click', toggleModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) toggleModal(); });
+
+    // Handle record button click
+    recordBtn.addEventListener('click', async () => {
+        const amount = document.getElementById('modalAmount').value;
+        const dateVal = document.getElementById('modalDate').value;
+        const card = document.getElementById('cardSelect').value;
+        const note = document.getElementById('modalNote').value;
+
+        // Get selected category from pills
+        const activePill = document.querySelector('.category-pill.selected');
+        const category = activePill ? activePill.dataset.value : '';
+
+        if (!amount || isNaN(amount)) {
+            showToast("กรุณาระบุจำนวนเงินให้ถูกต้อง", "error");
+            return;
+        }
+        if (!card) {
+            showToast("กรุณาเลือกบัตร/บัญชี", "error");
+            return;
+        }
+
+        recordBtn.disabled = true;
+        recordBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังบันทึก...';
+
+        try {
+            // Format date for backend (YYYY+543/MM/DD)
+            const d = dayjs(dateVal);
+            const formattedDate = `${d.year() + 543}/${String(d.month() + 1).padStart(2, '0')}/${String(d.date()).padStart(2, '0')}`;
+
+            const data = {
+                date: formattedDate,
+                amount: amount,
+                card: card,
+                category: category,
+                note: note
+            };
+
+            await postExpense(data);
+            
+            showToast("บันทึกข้อมูลเรียบร้อยแล้ว!");
+            toggleModal();
+            
+            // Reset fields
+            document.getElementById('modalAmount').value = '';
+            document.getElementById('modalNote').value = '';
+            
+            // Refresh Dashboard
+            const freshExpenses = await fetchExpenses();
+            allExpensesCache = freshExpenses;
+            const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
+            if (currentMonthVal) {
+                refreshDashboard(freshExpenses, currentMonthVal);
+            } else {
+                updateDashboardTotals(freshExpenses);
+                renderTransactionHistory(freshExpenses);
+                updateCategorySpending(freshExpenses);
+                updateMonthlyInsights(freshExpenses);
+            }
+
+        } catch (err) {
+            console.error("Error posting expense:", err);
+            showToast("เกิดข้อผิดพลาดในการบันทึก", "error");
+        } finally {
+            recordBtn.disabled = false;
+            recordBtn.innerHTML = 'บันทึกรายจ่าย';
+        }
+    });
+}
+
+function showToast(message, type = "success") {
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+
+    if (!toast || !toastMsg) return;
+
+    toastMsg.textContent = message;
+    
+    if (type === "error") {
+        toast.classList.remove('border-l-mint');
+        toast.classList.add('border-l-red-500');
+        toastIcon.className = "fa-solid fa-circle-exclamation text-red-500";
+    } else {
+        toast.classList.add('border-l-mint');
+        toast.classList.remove('border-l-red-500');
+        toastIcon.className = "fa-solid fa-circle-check text-mint";
+    }
+
+    toast.classList.remove('opacity-0', 'translate-y-10');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-10');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+    }, 3000);
+}
+
+
+async function updateMonthlyInsights(expenses, refMonth, refYear) {
+    const chartCanvas = document.getElementById('barChart');
+    if (!chartCanvas) return;
+
+    const today = new Date();
+    const refDate = (refMonth && refYear) ? new Date(refYear, refMonth - 1, 1) : today;
+    const last6Months = [];
+    
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(refDate.getFullYear(), refDate.getMonth() - i, 1);
+        last6Months.push({
+            month: d.getMonth() + 1,
+            year: d.getFullYear(),
+            label: d.toLocaleDateString('th-TH', { month: 'short' }).toUpperCase(),
+            amount: 0
+        });
+    }
+
+    expenses.forEach(item => {
+        const d = parseSheetDate(item.date);
+        if (!d) return;
+        
+        const m = d.getMonth() + 1;
+        const y = d.getFullYear();
+        const amt = Math.abs(parseFloat(item.amount) || 0);
+
+        // Record spending if not income
+        if (item.category !== 'รายได้' && item.category !== 'Income') {
+            const found = last6Months.find(l => l.month === m && l.year === y);
+            if (found) found.amount += amt;
+        }
+    });
+
+    const labels = last6Months.map(l => l.label);
+    const data = last6Months.map(l => l.amount);
+
+    if (barChart) {
+        barChart.data.labels = labels;
+        barChart.data.datasets[0].data = data;
+        barChart.update();
+    } else {
+        const ctx = chartCanvas.getContext('2d');
+        barChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: (ctx) => {
+                        return ctx.dataIndex === 5 ? '#4ade80' : '#23304a';
+                    },
+                    borderRadius: 4,
+                    barThickness: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { 
+                    callbacks: {
+                        label: function(context) {
+                            return '฿' + context.parsed.y.toLocaleString('th-TH');
+                        }
+                    }
+                } },
+                scales: {
+                    y: { display: false },
+                    x: { 
+                      grid: { display: false, drawBorder: false },
+                      ticks: { 
+                        color: (ctx) => ctx.index === 5 ? '#4ade80' : '#9ca3af',
+                        font: { size: 10, weight: 'bold' }
+                      }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function renderDoughnutSection({
+    chartInstance,
+    chartCanvas,
+    monthElem,
+    totalElem,
+    badgeElem,
+    legendElem,
+    items,
+    isNegative,
+    colorPalette,
+    monthLabel,
+    emptyText
+}) {
+    if (!chartCanvas || !legendElem) return chartInstance;
+
+    const categoryMap = {};
+    let total = 0;
+
+    items.forEach(item => {
+        const amt = Math.abs(parseFloat(item.amount) || 0);
+        const cat = item.category || 'ทั่วไป';
+        categoryMap[cat] = (categoryMap[cat] || 0) + amt;
+        total += amt;
+    });
+
+    const sign = isNegative ? '-' : '';
+
+    // Update Badge
+    if (badgeElem) {
+        if (total > 0) {
+            badgeElem.textContent = `${sign}฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        } else {
+            badgeElem.textContent = '฿0';
+        }
+    }
+
+    // Update Center Month
+    if (monthElem) {
+        monthElem.textContent = monthLabel;
+    }
+
+    // Update Center Total
+    if (totalElem) {
+        if (total > 0) {
+            const formattedTotal = total >= 1000 ? (total / 1000).toFixed(1) + 'k' : total.toFixed(0);
+            totalElem.textContent = `${sign}฿${formattedTotal}`;
+        } else {
+            totalElem.textContent = '฿0';
+        }
+    }
+
+    // Handle Empty State
+    if (total === 0) {
+        legendElem.innerHTML = `<span class="text-xs text-gray-500 py-3">${emptyText}ในเดือนนี้</span>`;
+
+        const emptyLabels = [emptyText];
+        const emptyData = [1];
+        const emptyColors = ['#23304a'];
+
+        if (chartInstance) {
+            chartInstance.data.labels = emptyLabels;
+            chartInstance.data.datasets[0].data = emptyData;
+            chartInstance.data.datasets[0].backgroundColor = emptyColors;
+            if (chartInstance.options.plugins?.tooltip) {
+                chartInstance.options.plugins.tooltip.enabled = false;
+            }
+            chartInstance.update();
+            return chartInstance;
+        } else {
+            const ctx = chartCanvas.getContext('2d');
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: emptyLabels,
+                    datasets: [{
+                        data: emptyData,
+                        backgroundColor: emptyColors,
+                        borderWidth: 0,
+                        hoverOffset: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    cutout: '78%'
+                }
+            });
+        }
+    }
+
+    // Render populated data
+    const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+    const labels = sortedCategories.map(c => c[0]);
+    const data = sortedCategories.map(c => c[1]);
+    const backgroundColors = sortedCategories.map((_, i) => colorPalette[i % colorPalette.length]);
+
+    // Update Legend
+    legendElem.innerHTML = '';
+    sortedCategories.forEach(([cat, val], i) => {
+        const percent = ((val / total) * 100).toFixed(0);
+        const color = backgroundColors[i];
+
+        const legendItem = document.createElement('div');
+        legendItem.className = "flex items-center gap-3 text-xs font-bold text-white";
+        legendItem.innerHTML = `
+            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${color}"></div>
+            <span class="truncate">${cat}</span>
+            <span class="text-gray-400 font-normal ml-auto">(${percent}%)</span>
+        `;
+        legendElem.appendChild(legendItem);
+    });
+
+    if (chartInstance) {
+        chartInstance.data.labels = labels;
+        chartInstance.data.datasets[0].data = data;
+        chartInstance.data.datasets[0].backgroundColor = backgroundColors;
+        if (chartInstance.options.plugins?.tooltip) {
+            chartInstance.options.plugins.tooltip.enabled = true;
+        }
+        chartInstance.update();
+        return chartInstance;
+    } else {
+        const ctx = chartCanvas.getContext('2d');
+        return new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed !== null) {
+                                    label += `${sign}฿${context.parsed.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                cutout: '78%'
+            }
+        });
+    }
+}
+
+async function updateCategorySpending(expenses, refMonth, refYear) {
+    let currentM = refMonth;
+    let currentY = refYear;
+    if (!currentM || !currentY) {
+        const globalSelect = document.getElementById('globalMonthSelect');
+        if (globalSelect && globalSelect.value) {
+            const [y, m] = globalSelect.value.split('-').map(Number);
+            currentY = y;
+            currentM = m;
+        } else {
+            const today = new Date();
+            currentM = today.getMonth() + 1;
+            currentY = today.getFullYear();
+        }
+    }
+
+    const monthDate = new Date(currentY, currentM - 1, 1);
+    const monthLabel = monthDate.toLocaleDateString('th-TH', { month: 'short' });
+
+    // Include all transactions in spending unless it's categorized as Income
+    const currentMonthExpenses = expenses.filter(item => {
+        const d = parseSheetDate(item.date);
+        const isNotIncome = item.category !== 'รายได้' && item.category !== 'Income';
+        return d && d.getFullYear() === currentY && (d.getMonth() + 1) === currentM && isNotIncome;
+    });
+
+    const positiveExpenses = currentMonthExpenses.filter(item => (parseFloat(item.amount) || 0) > 0);
+    const negativeExpenses = currentMonthExpenses.filter(item => (parseFloat(item.amount) || 0) < 0);
+
+    // Render Positive Chart
+    positiveDoughnutChart = renderDoughnutSection({
+        chartInstance: positiveDoughnutChart,
+        chartCanvas: document.getElementById('positiveDoughnutChart'),
+        monthElem: document.getElementById('positiveSpendingMonth'),
+        totalElem: document.getElementById('positiveSpendingTotal'),
+        badgeElem: document.getElementById('positiveSpendingBadge'),
+        legendElem: document.getElementById('positiveCategoryLegend'),
+        items: positiveExpenses,
+        isNegative: false,
+        colorPalette: POSITIVE_COLORS,
+        monthLabel: monthLabel,
+        emptyText: 'ไม่มียอดบวก'
+    });
+
+    // Render Negative Chart
+    negativeDoughnutChart = renderDoughnutSection({
+        chartInstance: negativeDoughnutChart,
+        chartCanvas: document.getElementById('negativeDoughnutChart'),
+        monthElem: document.getElementById('negativeSpendingMonth'),
+        totalElem: document.getElementById('negativeSpendingTotal'),
+        badgeElem: document.getElementById('negativeSpendingBadge'),
+        legendElem: document.getElementById('negativeCategoryLegend'),
+        items: negativeExpenses,
+        isNegative: true,
+        colorPalette: NEGATIVE_COLORS,
+        monthLabel: monthLabel,
+        emptyText: 'ไม่มียอดลบ'
+    });
+}
+
+const categoryIcons = {
+    "อาหาร": "fa-utensils",
+    "Food": "fa-utensils",
+    "Dining": "fa-utensils",
+    "เดินทาง": "fa-car",
+    "Transport": "fa-car",
+    "Travel": "fa-car",
+    "ช้อปปิ้ง": "fa-bag-shopping",
+    "Shopping": "fa-bag-shopping",
+    "บันเทิง": "fa-gamepad",
+    "Entertainment": "fa-gamepad",
+    "ที่พัก": "fa-house",
+    "Housing": "fa-house",
+    "Rent": "fa-house",
+    "สุขภาพ": "fa-heart-pulse",
+    "Health": "fa-heart-pulse",
+    "รายได้": "fa-money-bill-wave",
+    "Income": "fa-money-bill-wave"
+};
+
+function getIconForCategory(category) {
+    return categoryIcons[category] || "fa-tags";
+}
+
+async function renderTransactionHistory(expenses, refMonth, refYear) {
+    const today = new Date();
+    const currentM = refMonth || today.getMonth() + 1;
+    const currentY = refYear || today.getFullYear();
+
+    // Filter for current month
+    loadedExpenses = expenses.filter(item => {
+        const d = parseSheetDate(item.date);
+        return d && d.getFullYear() === currentY && (d.getMonth() + 1) === currentM;
+    });
+
+    // Reset pagination to first page when month changes
+    transactionCurrentPage = 1;
+
+    // Populate dropdowns based on this month's data
+    updateFilterDropdowns(loadedExpenses);
+
+    // Initial render
+    renderTransactionList(loadedExpenses);
+}
+
+function initTransactionPagination() {
+    const itemsPerPageSelect = document.getElementById('itemsPerPageSelect');
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
+
+    if (itemsPerPageSelect) {
+        itemsPerPageSelect.addEventListener('change', (e) => {
+            transactionPageSize = parseInt(e.target.value, 10) || 10;
+            transactionCurrentPage = 1;
+            renderCurrentTransactionPage();
+        });
+    }
+
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', () => {
+            if (transactionCurrentPage > 1) {
+                transactionCurrentPage--;
+                renderCurrentTransactionPage();
+            }
+        });
+    }
+
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(currentFilteredTransactions.length / transactionPageSize) || 1;
+            if (transactionCurrentPage < totalPages) {
+                transactionCurrentPage++;
+                renderCurrentTransactionPage();
+            }
+        });
+    }
+}
+
+function renderTransactionList(expensesToRender) {
+    // Sort by date descending
+    currentFilteredTransactions = [...expensesToRender].sort((a, b) => {
+        const dateA = parseSheetDate(a.date) || new Date(0);
+        const dateB = parseSheetDate(b.date) || new Date(0);
+        return dateB - dateA;
+    });
+
+    renderCurrentTransactionPage();
+}
+
+function renderCurrentTransactionPage() {
+    const transactionList = document.getElementById('transactionList');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
+    const paginationPages = document.getElementById('paginationPages');
+    const paginationContainer = document.getElementById('transactionPagination');
+
+    if (!transactionList) return;
+
+    const totalItems = currentFilteredTransactions.length;
+    const totalPages = Math.ceil(totalItems / transactionPageSize) || 1;
+
+    // Ensure valid page range
+    if (transactionCurrentPage > totalPages) {
+        transactionCurrentPage = totalPages;
+    }
+    if (transactionCurrentPage < 1) {
+        transactionCurrentPage = 1;
+    }
+
+    const startIndex = (transactionCurrentPage - 1) * transactionPageSize;
+    const endIndex = Math.min(startIndex + transactionPageSize, totalItems);
+    const pageItems = currentFilteredTransactions.slice(startIndex, endIndex);
+
+    transactionList.innerHTML = '';
+
+    if (totalItems === 0) {
+        transactionList.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-40 text-gray-500 font-medium">
+                <i class="fa-solid fa-receipt text-3xl mb-3 opacity-20"></i>
+                <p>ไม่พบรายการที่ตรงกับเงื่อนไข</p>
+            </div>
+        `;
+        if (paginationInfo) paginationInfo.textContent = '0 - 0 จาก 0 รายการ';
+        if (prevPageBtn) prevPageBtn.disabled = true;
+        if (nextPageBtn) nextPageBtn.disabled = true;
+        if (paginationPages) paginationPages.innerHTML = '';
+        return;
+    }
+
+    pageItems.forEach(item => {
+        const date = parseSheetDate(item.date);
+        const dateStr = date ? date.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' }) : item.date;
+        const timeStr = date ? date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '';
+        const amount = parseFloat(item.amount) || 0;
+        const isIncome = amount > 0;
+        const icon = getIconForCategory(item.category);
+
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between py-3.5 px-3 sm:grid sm:grid-cols-12 sm:gap-3 hover:bg-surface-2/60 rounded-2xl transition-colors cursor-pointer group border-b border-surface-3/30 sm:border-b-0";
+        row.innerHTML = `
+            <div class="flex items-center gap-3 sm:col-span-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-surface-2 group-hover:bg-surface-3 flex-shrink-0 flex items-center justify-center ${isIncome ? 'text-mint bg-mint/10' : 'text-slate-400'} text-xs transition-colors border border-slate-border/50">
+                    <i class="fa-solid ${icon}"></i>
+                </div>
+                <div class="flex flex-col min-w-0">
+                    <span class="text-xs font-bold text-white truncate sm:hidden">${item.category || 'ทั่วไป'}</span>
+                    <span class="text-xs font-bold text-white mb-0.5 hidden sm:block">${dateStr}</span>
+                    <span class="text-[10px] text-slate-400 font-medium tracking-wide">${timeStr ? (dateStr + ' • ' + timeStr) : dateStr}</span>
+                </div>
+            </div>
+            <div class="hidden sm:flex sm:col-span-3 items-center min-w-0">
+                <span class="text-xs font-semibold text-slate-200 truncate">${item.category || 'ทั่วไป'}</span>
+            </div>
+            <div class="hidden sm:flex sm:col-span-4 items-center min-w-0">
+                <span class="text-xs font-medium text-slate-400 truncate">${item.note || '-'}</span>
+            </div>
+            <div class="flex flex-col items-end sm:col-span-2 sm:text-right flex-shrink-0">
+                <span class="text-xs sm:text-sm font-extrabold ${isIncome ? 'text-mint' : 'text-white'} tabular-numbers">
+                    ${isIncome ? '+' : ''}${amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                ${item.note ? `<span class="text-[10px] text-slate-400 truncate max-w-[130px] sm:hidden text-right">${item.note}</span>` : ''}
+            </div>
+        `;
+        transactionList.appendChild(row);
+    });
+
+    // Update pagination status & text
+    if (paginationInfo) {
+        paginationInfo.textContent = `${startIndex + 1} - ${endIndex} จาก ${totalItems} รายการ`;
+    }
+
+    if (prevPageBtn) {
+        prevPageBtn.disabled = transactionCurrentPage <= 1;
+    }
+    if (nextPageBtn) {
+        nextPageBtn.disabled = transactionCurrentPage >= totalPages;
+    }
+
+    // Render page buttons
+    if (paginationPages) {
+        paginationPages.innerHTML = '';
+
+        // Calculate pages to show
+        let pagesToShow = [];
+        if (totalPages <= 5) {
+            for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
+        } else {
+            if (transactionCurrentPage <= 3) {
+                pagesToShow = [1, 2, 3, 4, '...', totalPages];
+            } else if (transactionCurrentPage >= totalPages - 2) {
+                pagesToShow = [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+            } else {
+                pagesToShow = [1, '...', transactionCurrentPage - 1, transactionCurrentPage, transactionCurrentPage + 1, '...', totalPages];
+            }
+        }
+
+        pagesToShow.forEach(page => {
+            if (page === '...') {
+                const ellipsis = document.createElement('span');
+                ellipsis.className = 'px-1.5 py-1 text-gray-500 text-xs select-none';
+                ellipsis.textContent = '...';
+                paginationPages.appendChild(ellipsis);
+            } else {
+                const btn = document.createElement('button');
+                btn.className = `w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition shadow-sm ${
+                    page === transactionCurrentPage
+                        ? 'bg-mint text-slate-900 font-bold'
+                        : 'bg-slate-700 hover:bg-slate-600 text-gray-300'
+                }`;
+                btn.textContent = page;
+                btn.addEventListener('click', () => {
+                    transactionCurrentPage = page;
+                    renderCurrentTransactionPage();
+                });
+                paginationPages.appendChild(btn);
+            }
+        });
+    }
+}
+
+function parseSheetDate(dateStr) {
+    if (!dateStr) return null;
+
+    try {
+        const str = dateStr.toString().split(/[T ]/)[0]; // Remove time if present
+        const parts = str.split(/[\/\-.]/);
+
+        if (parts.length >= 3) {
+            let p0 = parseInt(parts[0], 10);
+            let p1 = parseInt(parts[1], 10);
+            let p2 = parseInt(parts[2], 10);
+
+            let year, month, day;
+            // Year Detection (BE years usually >= 2400, CE years 1900-2100)
+            if (p2 >= 2400 || p2 > 1900) { 
+                year = p2; month = p1; day = p0;
+            } else { 
+                year = p0; month = p1; day = p2;
+            }
+
+            if (year >= 2400) year -= 543;
+            
+            // USE NUMERIC SETTERS FOR MAXIMUM RELIABILITY
+            // .month() is 0-indexed in dayjs
+            // MANUALLY SHIFTING +1 DAY as requested by user to fix the 1-day back shift
+            const d = dayjs().year(year).month(month - 1).date(day).startOf('day').add(1, 'day');
+            
+            if (d.isValid()) return d.toDate();
+        }
+    } catch (e) {
+        console.error("Error parsing date:", dateStr, e);
+    }
+
+    // Ultra-safe fallback using native Date constructor with numeric parts
+    const fallbackParts = dateStr.toString().split(/[T ]/)[0].split(/[\/\-.]/);
+    if (fallbackParts.length >= 3) {
+        let y = parseInt(fallbackParts[0], 10);
+        let m = parseInt(fallbackParts[1], 10);
+        let d = parseInt(fallbackParts[2], 10);
+        if (d >= 2400 || d > 1900) { let tmp = y; y = d; d = tmp; }
+        if (y >= 2400) y -= 543;
+        return new Date(y, m - 1, d);
+    }
+
+    return null;
+}
+
+async function updateDashboardTotals(expenses, refMonth, refYear) {
+    try {
+        if (!expenses) expenses = await fetchExpenses();
+        
+        const today = new Date();
+        const currentM = refMonth || today.getMonth() + 1;
+        const currentY = refYear || today.getFullYear();
+        const prevM = currentM === 1 ? 12 : currentM - 1;
+        const prevY = currentM === 1 ? currentY - 1 : currentY;
+
+        let currentTotal = 0;
+        let prevTotal = 0;
+
+        expenses.forEach(item => {
+            const d = parseSheetDate(item.date);
+            if (!d) return;
+
+            const sheetYear = d.getFullYear();
+            const sheetMonth = d.getMonth() + 1;
+            const amt = parseFloat(item.amount) || 0;
+            
+            if(sheetYear === currentY && sheetMonth === currentM) {
+                currentTotal += amt;
+            } else if (sheetYear === prevY && sheetMonth === prevM) {
+                prevTotal += amt;
+            }
+        });
+
+        const balanceElem = document.getElementById('totalBalanceAmount');
+        const percentElem = document.getElementById('totalBalancePercent');
+        
+        if (balanceElem) {
+            balanceElem.textContent = '฿' + currentTotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        
+        if (percentElem) {
+            if (prevTotal === 0) {
+                if (currentTotal > 0) {
+                    percentElem.textContent = '+100%';
+                    percentElem.className = 'bg-red-500/20 text-red-400 text-xs font-bold px-2 py-1 rounded-md mb-1';
+                } else {
+                    percentElem.textContent = '0%';
+                    percentElem.className = 'bg-slate-700 text-gray-400 text-xs font-bold px-2 py-1 rounded-md mb-1';
+                }
+            } else {
+                const diff = currentTotal - prevTotal;
+                const pct = (diff / prevTotal) * 100;
+                let sign = pct > 0 ? '+' : '';
+                percentElem.textContent = sign + pct.toFixed(1) + '%';
+                
+                // Color Logic: - = Green (Mint), + = Red
+                if (pct < 0) {
+                    percentElem.className = 'bg-[#103020] text-mint text-xs font-bold px-2 py-1 rounded-md mb-1';
+                } else if (pct > 0) {
+                    percentElem.className = 'bg-red-500/20 text-red-500 text-xs font-bold px-2 py-1 rounded-md mb-1';
+                } else {
+                    percentElem.className = 'bg-slate-700 text-gray-400 text-xs font-bold px-2 py-1 rounded-md mb-1';
+                }
+            }
+        }
+
+    } catch(err) {
+        console.error("Error in updateDashboardTotals:", err);
+    }
+}
+
