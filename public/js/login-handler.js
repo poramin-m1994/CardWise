@@ -1,4 +1,4 @@
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
+import { getGoogleSheetUrl, getConfig } from './config.js';
 
 export async function loginUser(e) {
   e.preventDefault();
@@ -14,7 +14,9 @@ export async function loginUser(e) {
   const password = document.getElementById('password').value.trim();
 
   try {
-    const res = await fetch(`${SHEET_URL}?sheet=Users`);
+    const sheetUrl = await getGoogleSheetUrl();
+    const usersSheetName = await getConfig('google_sheets.sheets.users', 'Users');
+    const res = await fetch(`${sheetUrl}?sheet=${usersSheetName}`);
     const users = await res.json();
     const found = users.find(user => user.username === username && user.password === password);
 

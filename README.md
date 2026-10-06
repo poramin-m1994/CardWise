@@ -36,12 +36,13 @@ firebase init hosting
 firebase deploy
 ```
 
-### 4. เปลี่ยน URL ของ Google Sheets (ใน `public/js/sheets.js`)
-```js
-const SHEET_URL = 'https://script.google.com/macros/s/your-script-id/exec';
+### 4. ตั้งค่า Google Sheets และตัวแปรระบบ (ใน `public/config.yaml`)
+```yaml
+google_sheets:
+  script_url: "https://script.google.com/macros/s/your-script-id/exec"
 ```
 
-> สร้าง Apps Script และ Deploy เป็น Web App เพื่อเชื่อม Google Sheets กับแอป
+> สามารถแก้ไขลิงก์ Web App URL หรือชื่อชีตที่ใช้งานได้ง่ายๆ ผ่านไฟล์ `public/config.yaml` โดยไม่ต้องแก้โค้ด JavaScript
 
 ---
 
