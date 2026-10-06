@@ -300,6 +300,36 @@
           </div>
         </div>
 
+        <!-- Pagination Controls -->
+        <div id="transactionPagination" class="pt-4 mt-2 border-t border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
+          <div class="flex items-center gap-2">
+            <span>แสดง</span>
+            <select id="itemsPerPageSelect" class="bg-slate-900 border border-slate-700 text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:border-mint focus:ring-1 focus:ring-mint outline-none transition cursor-pointer">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span>รายการต่อหน้า</span>
+            <span class="mx-1 text-slate-600">|</span>
+            <span id="paginationInfo" class="text-gray-400">0 - 0 จาก 0 รายการ</span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button id="prevPageBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 transition flex items-center gap-1 shadow-sm" disabled>
+              <i class="fa-solid fa-chevron-left text-[10px]"></i>
+              <span class="hidden sm:inline">ก่อนหน้า</span>
+            </button>
+            <div id="paginationPages" class="flex items-center gap-1">
+              <!-- Page numbers will be rendered dynamically -->
+            </div>
+            <button id="nextPageBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 transition flex items-center gap-1 shadow-sm" disabled>
+              <span class="hidden sm:inline">ถัดไป</span>
+              <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            </button>
+          </div>
+        </div>
+
       </div>
 
     </div>

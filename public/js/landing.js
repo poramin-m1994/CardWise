@@ -59,6 +59,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Setup Filter Bar (for search/category/card)
         initFilterBar();
 
+        // Setup Transaction Pagination
+        initTransactionPagination();
+
         // Initialize Modal Logic
         initTransactionModal();
 
@@ -71,6 +74,9 @@ let positiveDoughnutChart;
 let negativeDoughnutChart;
 let barChart;
 let loadedExpenses = []; // Store current month's expenses for sub-filtering
+let currentFilteredTransactions = []; // Store currently filtered transactions
+let transactionCurrentPage = 1;
+let transactionPageSize = 10;
 const CHART_COLORS = ['#4ade80', '#34d399', '#2dd4bf', '#22d3ee', '#38bdf8', '#818cf8', '#fbbf24', '#f87171', '#94a3b8'];
 const POSITIVE_COLORS = ['#4ade80', '#34d399', '#2dd4bf', '#22d3ee', '#38bdf8', '#818cf8', '#a78bfa'];
 const NEGATIVE_COLORS = ['#f87171', '#fb7185', '#f43f5e', '#fb923c', '#f59e0b', '#ec4899', '#c084fc'];
@@ -289,6 +295,7 @@ function initFilterBar() {
             return matchesSearch && matchesCat && matchesCard;
         });
 
+        transactionCurrentPage = 1;
         renderTransactionList(filtered);
     };
 
@@ -775,6 +782,9 @@ async function renderTransactionHistory(expenses, refMonth, refYear) {
         return d && d.getFullYear() === currentY && (d.getMonth() + 1) === currentM;
     });
 
+    // Reset pagination to first page when month changes
+    transactionCurrentPage = 1;
+
     // Populate dropdowns based on this month's data
     updateFilterDropdowns(loadedExpenses);
 
@@ -782,30 +792,92 @@ async function renderTransactionHistory(expenses, refMonth, refYear) {
     renderTransactionList(loadedExpenses);
 }
 
-function renderTransactionList(expensesToRender) {
-    const transactionList = document.getElementById('transactionList');
-    if (!transactionList) return;
+function initTransactionPagination() {
+    const itemsPerPageSelect = document.getElementById('itemsPerPageSelect');
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
 
+    if (itemsPerPageSelect) {
+        itemsPerPageSelect.addEventListener('change', (e) => {
+            transactionPageSize = parseInt(e.target.value, 10) || 10;
+            transactionCurrentPage = 1;
+            renderCurrentTransactionPage();
+        });
+    }
+
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', () => {
+            if (transactionCurrentPage > 1) {
+                transactionCurrentPage--;
+                renderCurrentTransactionPage();
+            }
+        });
+    }
+
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(currentFilteredTransactions.length / transactionPageSize) || 1;
+            if (transactionCurrentPage < totalPages) {
+                transactionCurrentPage++;
+                renderCurrentTransactionPage();
+            }
+        });
+    }
+}
+
+function renderTransactionList(expensesToRender) {
     // Sort by date descending
-    const sorted = [...expensesToRender].sort((a, b) => {
+    currentFilteredTransactions = [...expensesToRender].sort((a, b) => {
         const dateA = parseSheetDate(a.date) || new Date(0);
         const dateB = parseSheetDate(b.date) || new Date(0);
         return dateB - dateA;
     });
 
+    renderCurrentTransactionPage();
+}
+
+function renderCurrentTransactionPage() {
+    const transactionList = document.getElementById('transactionList');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
+    const paginationPages = document.getElementById('paginationPages');
+    const paginationContainer = document.getElementById('transactionPagination');
+
+    if (!transactionList) return;
+
+    const totalItems = currentFilteredTransactions.length;
+    const totalPages = Math.ceil(totalItems / transactionPageSize) || 1;
+
+    // Ensure valid page range
+    if (transactionCurrentPage > totalPages) {
+        transactionCurrentPage = totalPages;
+    }
+    if (transactionCurrentPage < 1) {
+        transactionCurrentPage = 1;
+    }
+
+    const startIndex = (transactionCurrentPage - 1) * transactionPageSize;
+    const endIndex = Math.min(startIndex + transactionPageSize, totalItems);
+    const pageItems = currentFilteredTransactions.slice(startIndex, endIndex);
+
     transactionList.innerHTML = '';
 
-    if (sorted.length === 0) {
+    if (totalItems === 0) {
         transactionList.innerHTML = `
             <div class="flex flex-col items-center justify-center h-40 text-gray-500 font-medium">
                 <i class="fa-solid fa-receipt text-3xl mb-3 opacity-20"></i>
                 <p>ไม่พบรายการที่ตรงกับเงื่อนไข</p>
             </div>
         `;
+        if (paginationInfo) paginationInfo.textContent = '0 - 0 จาก 0 รายการ';
+        if (prevPageBtn) prevPageBtn.disabled = true;
+        if (nextPageBtn) nextPageBtn.disabled = true;
+        if (paginationPages) paginationPages.innerHTML = '';
         return;
     }
 
-    sorted.forEach(item => {
+    pageItems.forEach(item => {
         const date = parseSheetDate(item.date);
         const dateStr = date ? date.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' }) : item.date;
         const timeStr = date ? date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -837,6 +909,59 @@ function renderTransactionList(expensesToRender) {
         `;
         transactionList.appendChild(row);
     });
+
+    // Update pagination status & text
+    if (paginationInfo) {
+        paginationInfo.textContent = `${startIndex + 1} - ${endIndex} จาก ${totalItems} รายการ`;
+    }
+
+    if (prevPageBtn) {
+        prevPageBtn.disabled = transactionCurrentPage <= 1;
+    }
+    if (nextPageBtn) {
+        nextPageBtn.disabled = transactionCurrentPage >= totalPages;
+    }
+
+    // Render page buttons
+    if (paginationPages) {
+        paginationPages.innerHTML = '';
+
+        // Calculate pages to show
+        let pagesToShow = [];
+        if (totalPages <= 5) {
+            for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
+        } else {
+            if (transactionCurrentPage <= 3) {
+                pagesToShow = [1, 2, 3, 4, '...', totalPages];
+            } else if (transactionCurrentPage >= totalPages - 2) {
+                pagesToShow = [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+            } else {
+                pagesToShow = [1, '...', transactionCurrentPage - 1, transactionCurrentPage, transactionCurrentPage + 1, '...', totalPages];
+            }
+        }
+
+        pagesToShow.forEach(page => {
+            if (page === '...') {
+                const ellipsis = document.createElement('span');
+                ellipsis.className = 'px-1.5 py-1 text-gray-500 text-xs select-none';
+                ellipsis.textContent = '...';
+                paginationPages.appendChild(ellipsis);
+            } else {
+                const btn = document.createElement('button');
+                btn.className = `w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition shadow-sm ${
+                    page === transactionCurrentPage
+                        ? 'bg-mint text-slate-900 font-bold'
+                        : 'bg-slate-700 hover:bg-slate-600 text-gray-300'
+                }`;
+                btn.textContent = page;
+                btn.addEventListener('click', () => {
+                    transactionCurrentPage = page;
+                    renderCurrentTransactionPage();
+                });
+                paginationPages.appendChild(btn);
+            }
+        });
+    }
 }
 
 function parseSheetDate(dateStr) {
