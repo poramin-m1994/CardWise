@@ -1,69 +1,586 @@
 <!DOCTYPE html>
-<html lang="th" class="">
+<html lang="th" class="dark">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <link rel="icon" type="image/png" href="./images/favicon.png" />
-  <title>CardWise | หน้าแรก</title>
+  <title>CardWise | Luminescent Financial Dashboard</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Prompt for bilingual Thai-English perfection -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            void: '#060a14',       // Deepest background
+            surface: {
+              0: '#070d1a',        // Canvas
+              1: '#0e172a',        // Surface Card Level 1
+              2: '#142038',        // Surface Card Level 2
+              3: '#1b2a47',        // Interactive elements & inputs
+              4: '#24375b',        // Hover / Border accents
+            },
+            mint: {
+              DEFAULT: '#34d399',  // Primary Mint (Luminescent)
+              light: '#6ee7b7',
+              hover: '#10b981',
+              dark: '#059669',
+              glow: 'rgba(52, 211, 153, 0.25)',
+              dim: 'rgba(52, 211, 153, 0.08)'
+            },
+            coral: {
+              DEFAULT: '#fb7185',  // Spending / Negative
+              light: '#fda4af',
+              dim: 'rgba(251, 113, 133, 0.12)'
+            },
+            slate: {
+              900: '#070d1a',
+              800: '#0e172a',
+              700: '#1b2a47',
+              600: '#24375b',
+              border: 'rgba(148, 163, 184, 0.12)'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '"Prompt"', 'sans-serif'],
+            mono: ['"SF Mono"', 'Consolas', '"Plus Jakarta Sans"', 'monospace']
+          },
+          boxShadow: {
+            'glow-mint': '0 0 25px -4px rgba(52, 211, 153, 0.35)',
+            'glow-coral': '0 0 25px -4px rgba(251, 113, 133, 0.35)',
+            'card-elevated': '0 20px 40px -15px rgba(2, 6, 16, 0.65)',
+            'popover': '0 25px 50px -12px rgba(0, 0, 0, 0.75)'
+          }
+        }
+      }
     };
   </script>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles/global.css" />
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(7, 13, 26, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1b2a47;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #34d399;
+    }
+
+    /* Ambient Glassmorphism & Tonal Layering */
+    .glass-nav {
+      background: rgba(14, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .glass-card {
+      background: linear-gradient(145deg, rgba(17, 28, 51, 0.85) 0%, rgba(11, 19, 36, 0.95) 100%);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .glass-card-hover {
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card-hover:hover {
+      border-color: rgba(52, 211, 153, 0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.5), 0 0 20px -8px rgba(52, 211, 153, 0.15);
+    }
+
+    .luminous-pill {
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      color: #34d399;
+    }
+
+    /* Tabular figures for money */
+    .tabular-numbers {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Pulse effect on live indicators */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.2); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .indicator-pulse {
+      animation: pulse-ring 2.5s infinite ease-in-out;
+    }
+  </style>
 </head>
-<body class="bg-[#F4F6F8] dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen flex flex-col">
 
-  <!-- Navigation Bar -->
-  <nav class="bg-white dark:bg-gray-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center">
-    <!-- Logo & Brand -->
-    <div class="flex items-center space-x-3">
-      <h1 class="text-2xl font-extrabold text-[#1D3557] dark:text-white">Card<span class="text-[#4CAF50]">Wise</span></h1>
-    </div>
+<body class="bg-void text-slate-200 min-h-screen flex flex-col font-sans selection:bg-mint selection:text-void overflow-x-hidden antialiased relative">
 
-    <!-- Navigation Links -->
-    <div class="mt-2 sm:mt-0 flex flex-wrap gap-3 text-sm font-medium items-center">
-      <a href="landing.html" class="text-white bg-[#4CAF50] px-4 py-2 rounded-full transition shadow">หน้าหลัก</a>
-      <a href="main.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">บันทึกรายจ่าย</a>
-      <a href="summary.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">ดูรายงาน</a>
-      <a href="manage.html" class="text-gray-700 dark:text-gray-200 hover:text-white hover:bg-[#4CAF50] px-4 py-2 rounded-full transition">หมวดหมู่/บัตร</a>
-      <button onclick="logout()" class="text-red-600 dark:text-red-400 hover:text-white hover:bg-red-500 px-4 py-2 rounded-full transition">ออกจากระบบ</button>
-      <button onclick="toggleDarkMode()" class="text-sm underline text-gray-600 dark:text-gray-300 ml-2" id="themeLabel">เปิดโหมดกลางคืน</button>
-    </div>
-  </nav>
+  <!-- Ambient Glow Gradients in Background -->
+  <div class="fixed top-0 left-1/4 w-96 h-96 bg-mint/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
+  <div class="fixed bottom-10 right-1/4 w-[28rem] h-[28rem] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
 
-  <!-- Dashboard -->
-  <main class="flex-grow flex flex-col items-center justify-center p-6">
-    <div class="text-center mb-10">
-      <h2 class="text-2xl font-bold text-[#1D3557] dark:text-white mb-2">ยินดีต้อนรับสู่ CardWise 🎉</h2>
-      <p class="text-gray-600 dark:text-gray-300">กรุณาเลือกเมนูที่คุณต้องการใช้งาน</p>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl w-full">
-      <!-- บันทึกรายจ่าย -->
-      <a href="main.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
-        <div class="text-5xl mb-4 bg-[#1D3557] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">📝</div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">บันทึกรายจ่าย</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-300">เพิ่มรายการค่าใช้จ่ายของคุณ</p>
+  <!-- Header / Navigation Bar -->
+  <header class="sticky top-0 z-40 glass-nav transition-all duration-200">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="landing.html" class="flex items-center gap-3 group focus:outline-none">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-mint-dark via-mint to-mint-light flex items-center justify-center text-void shadow-glow-mint transition-transform duration-300 group-hover:scale-105">
+          <i class="fa-solid fa-credit-card text-base font-bold"></i>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-xl font-extrabold tracking-tight text-white leading-none">Card<span class="text-mint">Wise.</span></span>
+          <span class="text-[9px] font-bold tracking-widest text-slate-400 uppercase mt-0.5">Financial Ledger</span>
+        </div>
       </a>
 
-      <!-- ดูรายงาน -->
-      <a href="summary.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
-        <div class="text-5xl mb-4 bg-[#4CAF50] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">📊</div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">ดูรายงานสรุป</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-300">ดูกราฟและสถิติรายจ่ายประจำเดือน</p>
-      </a>
+      <!-- Desktop Nav & Actions -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        <!-- Navigation Links -->
+        <nav class="hidden md:flex items-center bg-surface-2/60 p-1 rounded-2xl border border-slate-border">
+          <a href="landing.html" class="px-4 py-2 rounded-xl text-xs font-bold text-void bg-mint shadow-sm transition-all duration-200">
+            <i class="fa-solid fa-layer-group mr-1.5 text-[11px]"></i>แดชบอร์ด
+          </a>
+          <a href="manage.html" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-surface-3/80 transition-all duration-200">
+            <i class="fa-solid fa-sliders mr-1.5 text-[11px]"></i>หมวดหมู่ & บัตร
+          </a>
+        </nav>
 
-      <!-- จัดการหมวดหมู่/บัตร -->
-      <a href="manage.html" class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow hover:shadow-lg transition transform hover:-translate-y-1 text-center">
-        <div class="text-5xl mb-4 bg-[#FFC107] text-white w-16 h-16 mx-auto rounded-full flex items-center justify-center shadow">💳</div>
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">จัดการหมวดหมู่/บัตร</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-300">เพิ่ม ลบ หรือจัดการรายการที่ใช้ได้</p>
-      </a>
+        <div class="hidden sm:block w-px h-6 bg-slate-border/80"></div>
+
+        <!-- Notification & Logout -->
+        <div class="flex items-center gap-2">
+          <button type="button" class="w-9 h-9 rounded-xl bg-surface-2 hover:bg-surface-3 text-slate-300 hover:text-white flex items-center justify-center transition border border-slate-border focus:outline-none" title="การแจ้งเตือน">
+            <i class="fa-regular fa-bell text-xs"></i>
+          </button>
+
+          <button onclick="logout()" class="px-3.5 py-2 rounded-xl bg-surface-2 hover:bg-red-500/15 text-slate-300 hover:text-red-400 text-xs font-bold transition flex items-center gap-1.5 border border-slate-border focus:outline-none">
+            <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+            <span class="hidden sm:inline">ออกจากระบบ</span>
+          </button>
+
+          <!-- Hidden compatibility elements -->
+          <button id="themeLabel" class="hidden">ToggleTheme</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Bottom Sub-Nav (Convenient thumb reach) -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-30 glass-nav border-t border-slate-border px-6 py-2.5 flex items-center justify-around">
+    <a href="landing.html" class="flex flex-col items-center gap-1 text-mint font-bold text-[10px]">
+      <i class="fa-solid fa-layer-group text-base"></i>
+      <span>แดชบอร์ด</span>
+    </a>
+    <a href="manage.html" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white font-medium text-[10px]">
+      <i class="fa-solid fa-sliders text-base"></i>
+      <span>หมวดหมู่/บัตร</span>
+    </a>
+  </div>
+
+  <!-- Main Dashboard Content -->
+  <main class="flex-grow p-4 sm:p-6 lg:p-8 pb-28 md:pb-12 max-w-[1440px] w-full mx-auto">
+    
+    <!-- Top Row: Overview Banner & Global Month Picker -->
+    <div class="mb-6 sm:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest luminous-pill">
+            <span class="w-1.5 h-1.5 rounded-full bg-mint indicator-pulse" id="syncStatusDot"></span>
+            Monthly Ledger
+          </span>
+          <button id="syncDashboardBtn" type="button" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-slate-400 hover:text-white bg-surface-2 hover:bg-surface-3 transition border border-slate-border/60 cursor-pointer" title="กดเพื่อดึงข้อมูลสดจาก Google Sheets ทันที">
+            <i class="fa-solid fa-rotate text-[9px] text-mint transition-transform" id="syncIcon"></i>
+            <span id="syncStatusText">กำลังโหลด...</span>
+          </button>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">ภาพรวมค่าใช้จ่าย</h1>
+      </div>
+
+      <!-- Month & Year Selector -->
+      <div class="relative z-30 flex items-center gap-2.5 self-start md:self-auto w-full sm:w-auto">
+        <input type="hidden" id="globalMonthSelect" value="" />
+
+        <!-- Custom Popover Trigger -->
+        <div class="relative flex-grow sm:flex-grow-0">
+          <button id="monthPickerTrigger" type="button"
+            class="w-full sm:w-auto bg-surface-1 hover:bg-surface-2 border border-slate-border hover:border-mint/50 text-white text-xs sm:text-sm font-bold rounded-2xl py-3 px-4 flex items-center justify-between gap-3 transition-all duration-200 shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-mint/30">
+            <div class="flex items-center gap-2.5">
+              <div class="w-6 h-6 rounded-lg bg-mint/10 text-mint flex items-center justify-center">
+                <i class="fa-regular fa-calendar-days text-xs"></i>
+              </div>
+              <span id="monthPickerDisplay" class="whitespace-nowrap">กำลังโหลด...</span>
+            </div>
+            <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200" id="monthPickerArrow"></i>
+          </button>
+
+          <!-- Popover Dropdown -->
+          <div id="monthPickerPopover"
+            class="hidden absolute right-0 top-full mt-2 w-72 bg-surface-1/95 backdrop-blur-xl border border-slate-border rounded-2xl p-4 shadow-popover z-50 animate-in fade-in zoom-in-95 duration-150">
+            
+            <!-- Year Navigator -->
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-surface-3">
+              <button id="prevYearBtn" type="button"
+                class="w-8 h-8 rounded-xl bg-surface-2 hover:bg-surface-3 text-slate-300 hover:text-white flex items-center justify-center transition text-xs cursor-pointer border border-slate-border/50">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-semibold text-slate-400">พ.ศ.</span>
+                <span id="pickerYearDisplay" class="text-base font-extrabold text-white tracking-wide">...</span>
+              </div>
+              <button id="nextYearBtn" type="button"
+                class="w-8 h-8 rounded-xl bg-surface-2 hover:bg-surface-3 text-slate-300 hover:text-white flex items-center justify-center transition text-xs cursor-pointer border border-slate-border/50">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+
+            <!-- Months Grid -->
+            <div class="grid grid-cols-3 gap-2" id="monthGrid"></div>
+          </div>
+        </div>
+
+        <!-- Search / Apply Button -->
+        <button id="searchDashboardBtn" type="button"
+          class="bg-gradient-to-r from-mint to-mint-hover hover:from-mint-light hover:to-mint text-void text-xs sm:text-sm font-extrabold px-5 py-3 rounded-2xl transition-all duration-200 shadow-glow-mint flex items-center gap-2 cursor-pointer whitespace-nowrap active:scale-[0.98] flex-shrink-0">
+          <i class="fa-solid fa-magnifying-glass text-xs"></i>
+          <span>ดูข้อมูล</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Grid Layout: 12 Columns -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- LEFT COLUMN: Key Insights (Col Span 5) -->
+      <div class="lg:col-span-5 flex flex-col gap-6 w-full">
+
+        <!-- Total Balance Hero Card -->
+        <div class="glass-card glass-card-hover p-6 sm:p-7 rounded-3xl relative overflow-hidden">
+          <!-- Background glow accent -->
+          <div class="absolute -top-12 -right-12 w-36 h-36 bg-mint/10 rounded-full blur-2xl pointer-events-none"></div>
+
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase">ยอดรวมประจำเดือน (Total Spent)</span>
+            <span class="w-8 h-8 rounded-xl bg-mint/10 text-mint flex items-center justify-center text-xs">
+              <i class="fa-solid fa-wallet"></i>
+            </span>
+          </div>
+
+          <div class="flex items-baseline flex-wrap gap-3">
+            <h2 id="totalBalanceAmount" class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight tabular-numbers">฿0.00</h2>
+            <div id="totalBalancePercent" class="inline-flex items-center gap-1 bg-surface-2 text-slate-400 text-xs font-bold px-2.5 py-1 rounded-lg">
+              ...
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2 font-medium">เทียบกับยอดค่าใช้จ่ายในเดือนก่อนหน้า</p>
+        </div>
+
+        <!-- Category Spending Doughnut Card -->
+        <div class="glass-card p-6 sm:p-7 rounded-3xl flex flex-col gap-6">
+          <div class="flex items-center justify-between pb-4 border-b border-surface-3/70">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-surface-2 text-mint flex items-center justify-center text-sm">
+                <i class="fa-solid fa-chart-pie"></i>
+              </div>
+              <div>
+                <h3 class="text-base font-bold text-white leading-tight">สัดส่วนตามหมวดหมู่</h3>
+                <span class="text-[11px] text-slate-400 font-medium">Category Breakdown</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-6">
+            <!-- Segment 1: ยอดบวก (+) Income/Credit -->
+            <div class="bg-surface-0/60 p-4 rounded-2xl border border-slate-border/50">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-mint shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>
+                  <span class="text-xs font-bold text-slate-200">ยอดบวก (+) รายรับ/คืนเงิน</span>
+                </div>
+                <span id="positiveSpendingBadge" class="text-xs font-extrabold text-mint bg-mint/10 px-2.5 py-0.5 rounded-md tabular-numbers">฿0</span>
+              </div>
+
+              <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 pt-1">
+                <div class="relative w-32 h-32 flex-shrink-0">
+                  <canvas id="positiveDoughnutChart"></canvas>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span id="positiveSpendingMonth" class="text-[10px] text-slate-400 font-bold">-</span>
+                    <span id="positiveSpendingTotal" class="text-xs font-extrabold text-white tabular-numbers">฿0</span>
+                  </div>
+                </div>
+                <div id="positiveCategoryLegend" class="flex flex-col gap-2 w-full min-w-0 justify-center self-center">
+                  <span class="text-xs text-slate-400">กำลังโหลด...</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Segment 2: ยอดลบ (-) Expenses -->
+            <div class="bg-surface-0/60 p-4 rounded-2xl border border-slate-border/50">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-coral shadow-[0_0_8px_rgba(251,113,133,0.6)]"></span>
+                  <span class="text-xs font-bold text-slate-200">ยอดจ่าย (-) บัตรเครดิต</span>
+                </div>
+                <span id="negativeSpendingBadge" class="text-xs font-extrabold text-coral bg-coral-dim px-2.5 py-0.5 rounded-md tabular-numbers">฿0</span>
+              </div>
+
+              <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 pt-1">
+                <div class="relative w-32 h-32 flex-shrink-0">
+                  <canvas id="negativeDoughnutChart"></canvas>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span id="negativeSpendingMonth" class="text-[10px] text-slate-400 font-bold">-</span>
+                    <span id="negativeSpendingTotal" class="text-xs font-extrabold text-white tabular-numbers">฿0</span>
+                  </div>
+                </div>
+                <div id="negativeCategoryLegend" class="flex flex-col gap-2 w-full min-w-0 justify-center self-center">
+                  <span class="text-xs text-slate-400">กำลังโหลด...</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 6-Month Spending Trend -->
+        <div class="glass-card p-6 sm:p-7 rounded-3xl flex flex-col">
+          <div class="flex items-center justify-between mb-6 pb-3 border-b border-surface-3/70">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-xl bg-surface-2 text-mint flex items-center justify-center text-sm">
+                <i class="fa-solid fa-chart-column"></i>
+              </div>
+              <h3 class="text-base font-bold text-white leading-tight">แนวโน้ม 6 เดือนย้อนหลัง</h3>
+            </div>
+            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest bg-surface-2 px-2.5 py-1 rounded-lg border border-slate-border/50">
+              Trend
+            </span>
+          </div>
+
+          <div class="relative w-full h-44 mt-auto">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: Transaction History & Filters (Col Span 7) -->
+      <div class="lg:col-span-7 flex flex-col gap-6 w-full">
+
+        <div class="glass-card rounded-3xl p-5 sm:p-7 flex flex-col min-h-[680px]">
+          
+          <!-- History Header & Search Toggle -->
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">ประวัติรายการ</h2>
+              <p class="text-xs text-slate-400 font-medium mt-0.5">รายการใช้จ่ายและการเคลื่อนไหวทั้งหมดในเดือนที่เลือก</p>
+            </div>
+            <button id="toggleFilterBtn" type="button"
+              class="w-10 h-10 rounded-2xl bg-surface-2 hover:bg-surface-3 text-slate-300 hover:text-white flex items-center justify-center transition border border-slate-border cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-mint/30"
+              title="ค้นหา & คัดกรอง">
+              <i class="fa-solid fa-filter text-xs"></i>
+            </button>
+          </div>
+
+          <!-- Filter Panel (Collapsible) -->
+          <div id="filterPanel" class="max-h-0 overflow-hidden transition-all duration-300 ease-in-out opacity-0">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-surface-0/70 rounded-2xl border border-slate-border/80 mb-5">
+              <!-- Search Keyword -->
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="historySearch" placeholder="ค้นหารายการ..."
+                  class="w-full bg-surface-2 border border-slate-border text-white text-xs rounded-xl py-2.5 pl-9 pr-3 focus:border-mint focus:ring-1 focus:ring-mint transition outline-none placeholder-slate-500">
+              </div>
+              <!-- Category Filter -->
+              <div class="relative">
+                <i class="fa-solid fa-tag absolute left-3.5 top-1/2 -translate-y-1/2 text-mint text-xs"></i>
+                <select id="historyCategoryFilter"
+                  class="w-full bg-surface-2 border border-slate-border text-white text-xs rounded-xl py-2.5 pl-9 pr-8 focus:border-mint focus:ring-1 focus:ring-mint transition outline-none appearance-none cursor-pointer">
+                  <option value="">ทุกหมวดหมู่</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]"></i>
+              </div>
+              <!-- Card Filter -->
+              <div class="relative">
+                <i class="fa-solid fa-credit-card absolute left-3.5 top-1/2 -translate-y-1/2 text-mint text-xs"></i>
+                <select id="historyCardFilter"
+                  class="w-full bg-surface-2 border border-slate-border text-white text-xs rounded-xl py-2.5 pl-9 pr-8 focus:border-mint focus:ring-1 focus:ring-mint transition outline-none appearance-none cursor-pointer">
+                  <option value="">ทุกบัตร</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table Header (Desktop/Tablet) -->
+          <div class="hidden sm:grid grid-cols-12 gap-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest pb-3 border-b border-surface-3/80 px-3">
+            <div class="col-span-3">วันที่ / เวลา</div>
+            <div class="col-span-3">หมวดหมู่</div>
+            <div class="col-span-4">บันทึกช่วยจำ</div>
+            <div class="col-span-2 text-right">จำนวนเงิน</div>
+          </div>
+
+          <!-- Transaction Rows Container -->
+          <div id="transactionList" class="flex flex-col flex-grow overflow-y-auto pr-0 sm:pr-1 divide-y divide-surface-3/30 sm:divide-none">
+            <div class="flex flex-col items-center justify-center h-48 text-slate-400 font-medium text-xs">
+              <i class="fa-solid fa-spinner fa-spin text-xl text-mint mb-2"></i>
+              <span>กำลังโหลดรายการ...</span>
+            </div>
+          </div>
+
+          <!-- Pagination Bar -->
+          <div id="transactionPagination" class="pt-4 mt-auto border-t border-surface-3/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+            <div class="flex items-center gap-2">
+              <span>แสดง</span>
+              <select id="itemsPerPageSelect" class="bg-surface-2 border border-slate-border text-white text-xs rounded-xl px-2.5 py-1.5 focus:border-mint focus:ring-1 focus:ring-mint outline-none transition cursor-pointer">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span>รายการ</span>
+              <span class="mx-1 text-slate-600">|</span>
+              <span id="paginationInfo" class="text-slate-300 font-medium">0 - 0 จาก 0 รายการ</span>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <button id="prevPageBtn" class="px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface-3 disabled:opacity-30 disabled:cursor-not-allowed text-slate-200 transition flex items-center gap-1 border border-slate-border/50" disabled>
+                <i class="fa-solid fa-chevron-left text-[10px]"></i>
+                <span class="hidden sm:inline">ก่อนหน้า</span>
+              </button>
+              <div id="paginationPages" class="flex items-center gap-1">
+                <!-- Page numbers rendered dynamically -->
+              </div>
+              <button id="nextPageBtn" class="px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface-3 disabled:opacity-30 disabled:cursor-not-allowed text-slate-200 transition flex items-center gap-1 border border-slate-border/50" disabled>
+                <span class="hidden sm:inline">ถัดไป</span>
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
   </main>
+
+  <!-- Floating Action Button (FAB for New Transaction) -->
+  <button id="fab" type="button"
+    class="fixed bottom-20 md:bottom-8 right-6 md:right-8 w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-gradient-to-tr from-mint-dark via-mint to-mint-light text-void flex items-center justify-center text-xl sm:text-2xl shadow-glow-mint hover:scale-105 active:scale-95 transition-all duration-200 z-40 focus:outline-none focus:ring-4 focus:ring-mint/40 cursor-pointer"
+    title="เพิ่มรายการค่าใช้จ่าย">
+    <i class="fa-solid fa-plus font-bold"></i>
+  </button>
+
+  <!-- Add Expense Modal (Smooth Bottom-Sheet & Centered Backdrop) -->
+  <div id="expenseModal"
+    class="fixed inset-0 bg-void/80 backdrop-blur-md flex items-end sm:items-center justify-center z-[1000] opacity-0 pointer-events-none transition-opacity duration-300 p-0 sm:p-4">
+    
+    <!-- Modal Card -->
+    <div class="bg-surface-1 border border-slate-border w-full max-w-[480px] rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 transform translate-y-8 transition-transform duration-300 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      
+      <!-- Top Handle (Mobile Sheet) -->
+      <div class="sm:hidden w-12 h-1.5 bg-slate-600/50 rounded-full mx-auto mb-4"></div>
+
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-xl font-extrabold text-white tracking-tight">บันทึกรายการใหม่</h2>
+          <p class="text-xs text-slate-400 font-medium">ระบุยอดเงิน บัตร และหมวดหมู่</p>
+        </div>
+        <button id="closeModal" type="button"
+          class="w-9 h-9 rounded-xl bg-surface-2 hover:bg-surface-3 text-slate-400 hover:text-white transition flex items-center justify-center border border-slate-border cursor-pointer focus:outline-none">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Amount Input (Large Highlight) -->
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-300 mb-2">จำนวนเงิน (บาท)</label>
+        <div class="bg-surface-0 rounded-2xl flex items-center px-4 py-3 border border-slate-border focus-within:border-mint focus-within:ring-2 focus-within:ring-mint/20 transition">
+          <span class="text-mint font-extrabold text-2xl mr-2">฿</span>
+          <input type="number" id="modalAmount"
+            class="bg-transparent border-none text-white text-2xl sm:text-3xl font-extrabold w-full outline-none p-0 focus:ring-0 tabular-numbers placeholder-slate-600"
+            placeholder="0.00" step="0.01">
+        </div>
+      </div>
+
+      <!-- Date & Card Selection Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-2">วันที่ทำรายการ</label>
+          <div class="bg-surface-0 rounded-2xl flex items-center px-3.5 py-3 border border-slate-border focus-within:border-mint focus-within:ring-2 focus-within:ring-mint/20 transition">
+            <i class="fa-regular fa-calendar text-slate-400 mr-2.5 text-xs text-mint"></i>
+            <input type="date" id="modalDate"
+              class="bg-transparent border-none text-white text-xs sm:text-sm font-medium w-full outline-none p-0 focus:ring-0 cursor-pointer">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-2">บัตรเครดิต / บัญชี</label>
+          <div class="bg-surface-0 rounded-2xl flex items-center px-3.5 py-3 relative border border-slate-border focus-within:border-mint focus-within:ring-2 focus-within:ring-mint/20 transition">
+            <i class="fa-regular fa-credit-card text-slate-400 mr-2.5 text-xs text-mint"></i>
+            <select id="cardSelect"
+              class="bg-transparent border-none text-white text-xs sm:text-sm font-medium w-full outline-none p-0 focus:ring-0 appearance-none pr-6 cursor-pointer">
+              <option value="" class="bg-surface-1">กำลังโหลด...</option>
+            </select>
+            <i class="fa-solid fa-chevron-down text-slate-400 absolute right-3.5 pointer-events-none text-[10px]"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Categories Pills -->
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-300 mb-2">หมวดหมู่รายจ่าย</label>
+        <div id="categoryContainer" class="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1">
+          <span class="text-xs text-slate-400">กำลังโหลด...</span>
+        </div>
+      </div>
+
+      <!-- Note / Detail -->
+      <div class="mb-6">
+        <label class="block text-xs font-bold text-slate-300 mb-2">บันทึกเพิ่มเติม (ไม่บังคับ)</label>
+        <textarea id="modalNote"
+          class="w-full bg-surface-0 border border-slate-border text-white text-xs font-medium rounded-2xl p-3.5 outline-none focus:border-mint focus:ring-2 focus:ring-mint/20 transition resize-none h-20 placeholder-slate-500"
+          placeholder="ระบุร้านค้า หรือรายละเอียดสั้นๆ..."></textarea>
+      </div>
+
+      <!-- Submit CTA Button -->
+      <button id="recordExpense" type="button"
+        class="w-full bg-gradient-to-r from-mint to-mint-hover hover:from-mint-light hover:to-mint text-void font-extrabold text-sm py-4 rounded-2xl transition-all duration-200 shadow-glow-mint active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2">
+        <i class="fa-solid fa-check"></i>
+        <span>บันทึกรายจ่าย</span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Pill -->
+  <div id="toast"
+    class="fixed top-6 left-1/2 -translate-x-1/2 bg-surface-1/90 backdrop-blur-xl border border-slate-border text-white px-5 py-3 rounded-2xl shadow-popover transition-all duration-300 flex items-center gap-3 z-[2000] opacity-0 -translate-y-10 border-l-4 border-l-mint pointer-events-none">
+    <i class="fa-solid fa-circle-check text-mint text-base" id="toastIcon"></i>
+    <span id="toastMessage" class="text-xs font-bold text-white">บันทึกสำเร็จ!</span>
+  </div>
+
+  <!-- JavaScript Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/customParseFormat.js"></script>
+  <script>dayjs.extend(window.dayjs_plugin_customParseFormat);</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="js/landing.js?v=1.0.4"></script>
 </body>
-<script type="module" src="js/landing.js"></script>
+
 </html>
