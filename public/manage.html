@@ -3,9 +3,15 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <link rel="icon" type="image/png" href="./images/favicon.png" />
   <title>CardWise | จัดการหมวดหมู่ & บัตร</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -14,158 +20,282 @@
       theme: {
         extend: {
           colors: {
-            slate: {
-              900: '#0b1326', // Deep Slate / Background
-              800: '#17223b', // Card background 
-              700: '#23304a', // Lighter element backgrounds
-              600: '#324565', // Highlights
-              border: '#23304a'
+            void: '#060a14',
+            surface: {
+              0: '#070d1a',
+              1: '#0e172a',
+              2: '#142038',
+              3: '#1b2a47',
+              4: '#24375b',
             },
             mint: {
-              DEFAULT: '#4ade80', // Primary Mint
-              hover: '#22c55e',
+              DEFAULT: '#34d399',
+              light: '#6ee7b7',
+              hover: '#10b981',
+              dark: '#059669',
+              glow: 'rgba(52, 211, 153, 0.25)',
+              dim: 'rgba(52, 211, 153, 0.08)'
+            },
+            coral: {
+              DEFAULT: '#fb7185',
+              light: '#fda4af',
+              dim: 'rgba(251, 113, 133, 0.12)'
+            },
+            slate: {
+              900: '#070d1a',
+              800: '#0e172a',
+              700: '#1b2a47',
+              600: '#24375b',
+              border: 'rgba(148, 163, 184, 0.12)'
             }
           },
           fontFamily: {
-            sans: ['Manrope', 'Kanit', 'sans-serif'],
+            sans: ['"Plus Jakarta Sans"', '"Prompt"', 'sans-serif'],
+            mono: ['"SF Mono"', 'Consolas', '"Plus Jakarta Sans"', 'monospace']
+          },
+          boxShadow: {
+            'glow-mint': '0 0 25px -4px rgba(52, 211, 153, 0.35)',
+            'card-elevated': '0 20px 40px -15px rgba(2, 6, 16, 0.65)',
+            'popover': '0 25px 50px -12px rgba(0, 0, 0, 0.75)'
           }
         }
       }
     };
   </script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="./styles/global.css" />
+
   <style>
     /* Custom Scrollbar */
     ::-webkit-scrollbar {
-      width: 6px;
+      width: 5px;
+      height: 5px;
     }
-
     ::-webkit-scrollbar-track {
-      background: transparent;
+      background: rgba(7, 13, 26, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1b2a47;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #34d399;
     }
 
-    ::-webkit-scrollbar-thumb {
-      background-color: #324565;
-      border-radius: 20px;
+    /* Ambient Glassmorphism & Tonal Layering */
+    .glass-nav {
+      background: rgba(14, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .glass-card {
+      background: linear-gradient(145deg, rgba(17, 28, 51, 0.85) 0%, rgba(11, 19, 36, 0.95) 100%);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .luminous-pill {
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      color: #34d399;
     }
   </style>
 </head>
 
-<body
-  class="bg-slate-900 text-gray-200 min-h-screen flex flex-col font-sans selection:bg-mint selection:text-slate-900 overflow-x-hidden">
+<body class="bg-void text-slate-200 min-h-screen flex flex-col font-sans selection:bg-mint selection:text-void overflow-x-hidden antialiased relative">
 
-  <!-- Navigation Bar -->
-  <nav
-    class="bg-slate-800 shadow-md px-6 py-4 flex flex-col sm:flex-row justify-between items-center border-b border-slate-700">
-    <div class="flex items-center space-x-3">
-      <h1 class="text-2xl font-extrabold text-white"><i class="fa-solid fa-credit-card text-mint mr-1"></i> Card<span
-          class="text-mint">Wise.</span></h1>
-    </div>
+  <!-- Ambient Glow Gradients in Background -->
+  <div class="fixed top-0 right-1/4 w-96 h-96 bg-mint/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
+  <div class="fixed bottom-10 left-1/4 w-[28rem] h-[28rem] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
 
-    <!-- Navigation Links -->
-    <div class="mt-4 sm:mt-0 flex flex-wrap gap-2 text-sm font-semibold items-center">
-      <a href="landing.html"
-        class="text-gray-300 hover:text-white hover:bg-slate-700 px-5 py-2 rounded-xl transition">Home</a>
-      <a href="manage.html" class="text-slate-900 bg-mint px-5 py-2 rounded-xl transition shadow">Categories</a>
-      <button onclick="logout()"
-        class="text-red-400 hover:text-white hover:bg-red-500/20 px-5 py-2 rounded-xl transition">Logout</button>
-      <div class="w-px h-6 bg-slate-700 mx-2"></div>
-      <i class="fa-regular fa-bell text-gray-400 text-xl cursor-pointer hover:text-white transition"></i>
-      <button id="themeLabel" class="hidden">ToggleTheme</button>
+  <!-- Header / Navigation Bar -->
+  <header class="sticky top-0 z-40 glass-nav transition-all duration-200">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="landing.html" class="flex items-center gap-3 group focus:outline-none">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-mint-dark via-mint to-mint-light flex items-center justify-center text-void shadow-glow-mint transition-transform duration-300 group-hover:scale-105">
+          <i class="fa-solid fa-credit-card text-base font-bold"></i>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-xl font-extrabold tracking-tight text-white leading-none">Card<span class="text-mint">Wise.</span></span>
+          <span class="text-[9px] font-bold tracking-widest text-slate-400 uppercase mt-0.5">Financial Ledger</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav & Actions -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        <!-- Navigation Links -->
+        <nav class="hidden md:flex items-center bg-surface-2/60 p-1 rounded-2xl border border-slate-border">
+          <a href="landing.html" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-surface-3/80 transition-all duration-200">
+            <i class="fa-solid fa-layer-group mr-1.5 text-[11px]"></i>แดชบอร์ด
+          </a>
+          <a href="manage.html" class="px-4 py-2 rounded-xl text-xs font-bold text-void bg-mint shadow-sm transition-all duration-200">
+            <i class="fa-solid fa-sliders mr-1.5 text-[11px]"></i>หมวดหมู่ & บัตร
+          </a>
+        </nav>
+
+        <div class="hidden sm:block w-px h-6 bg-slate-border/80"></div>
+
+        <!-- Notification & Logout -->
+        <div class="flex items-center gap-2">
+          <button type="button" class="w-9 h-9 rounded-xl bg-surface-2 hover:bg-surface-3 text-slate-300 hover:text-white flex items-center justify-center transition border border-slate-border focus:outline-none" title="การแจ้งเตือน">
+            <i class="fa-regular fa-bell text-xs"></i>
+          </button>
+
+          <button onclick="logout()" class="px-3.5 py-2 rounded-xl bg-surface-2 hover:bg-red-500/15 text-slate-300 hover:text-red-400 text-xs font-bold transition flex items-center gap-1.5 border border-slate-border focus:outline-none">
+            <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+            <span class="hidden sm:inline">ออกจากระบบ</span>
+          </button>
+
+          <!-- Hidden compatibility elements -->
+          <button id="themeLabel" class="hidden">ToggleTheme</button>
+        </div>
+      </div>
     </div>
-  </nav>
+  </header>
+
+  <!-- Mobile Bottom Sub-Nav -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-30 glass-nav border-t border-slate-border px-6 py-2.5 flex items-center justify-around">
+    <a href="landing.html" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white font-medium text-[10px]">
+      <i class="fa-solid fa-layer-group text-base"></i>
+      <span>แดชบอร์ด</span>
+    </a>
+    <a href="manage.html" class="flex flex-col items-center gap-1 text-mint font-bold text-[10px]">
+      <i class="fa-solid fa-sliders text-base"></i>
+      <span>หมวดหมู่/บัตร</span>
+    </a>
+  </div>
 
   <!-- Loading Screen Overlay -->
   <div id="loadingOverlay"
-    class="fixed inset-0 bg-[#0b1326]/90 backdrop-blur-sm flex flex-col items-center justify-center z-[2000] opacity-0 pointer-events-none transition-opacity duration-300">
+    class="fixed inset-0 bg-void/85 backdrop-blur-md flex flex-col items-center justify-center z-[2000] opacity-0 pointer-events-none transition-opacity duration-300">
     <div class="w-12 h-12 border-4 border-mint/20 border-t-mint rounded-full animate-spin"></div>
-    <p class="mt-4 text-sm font-bold text-gray-400 tracking-widest uppercase">กำลังโหลดข้อมูล...</p>
+    <p class="mt-4 text-xs font-bold text-slate-300 tracking-widest uppercase">กำลังบันทึกและซิงค์ข้อมูล...</p>
   </div>
 
   <!-- Main Content -->
-  <main class="flex-grow p-4 md:p-8 flex flex-col">
-    <div class="max-w-5xl mx-auto w-full">
-      <header class="mb-10 pl-2">
-        <h1 class="text-3xl font-extrabold text-white mb-2 tracking-tight">Management Panel</h1>
-        <p class="text-sm text-gray-400 font-medium">Configure your spending categories and payment methods.</p>
-      </header>
+  <main class="flex-grow p-4 sm:p-6 lg:p-8 pb-28 md:pb-12 max-w-[1280px] w-full mx-auto">
+    
+    <!-- Header Banner -->
+    <div class="mb-8 pl-1">
+      <div class="flex items-center gap-2 mb-1.5">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest luminous-pill">
+          <i class="fa-solid fa-gear text-[10px]"></i>
+          Configuration
+        </span>
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">จัดการหมวดหมู่ & บัตรเครดิต</h1>
+      <p class="text-xs sm:text-sm text-slate-400 font-medium mt-1">กำหนดประเภทรายจ่ายและชื่อบัตรเครดิต/บัญชี เพื่อให้การบันทึกรายการเป็นระเบียบและแม่นยำ</p>
+    </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-        <!-- Categories Section -->
-        <section class="bg-slate-800 p-8 rounded-2xl border border-slate-border shadow-lg">
-          <div class="flex items-center gap-3 mb-8">
-            <div
-              class="w-10 h-10 rounded-xl bg-mint/10 flex items-center justify-center text-mint shadow-[0_0_15px_rgba(74,222,128,0.1)]">
+    <!-- 2 Column Responsive Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-start">
+      
+      <!-- Categories Section Card -->
+      <section class="glass-card rounded-3xl p-6 sm:p-7 flex flex-col">
+        
+        <div class="flex items-center justify-between pb-5 border-b border-surface-3/70 mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-mint/10 text-mint flex items-center justify-center text-sm shadow-[0_0_15px_rgba(52,211,153,0.15)]">
               <i class="fa-solid fa-tags"></i>
             </div>
-            <h2 class="text-xl font-bold text-white">หมวดหมู่</h2>
-          </div>
-
-          <div class="mb-10">
-            <label
-              class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest px-1">เพิ่มหมวดหมู่ใหม่</label>
-            <div class="flex gap-3">
-              <input id="newCategory"
-                class="flex-1 bg-slate-700 border border-slate-600 text-gray-200 text-sm font-semibold p-4 rounded-xl outline-none focus:border-mint focus:ring-1 focus:ring-mint transition placeholder-gray-500"
-                placeholder="ระบุชื่อหมวดหมู่..." />
-              <button onclick="addItem('category')"
-                class="bg-mint hover:bg-mint-hover text-slate-900 font-extrabold px-7 rounded-xl transition shadow-[0_2px_15px_rgba(74,222,128,0.2)]">เพิ่ม</button>
+            <div>
+              <h2 class="text-lg font-bold text-white leading-tight">หมวดหมู่รายจ่าย</h2>
+              <span class="text-[11px] text-slate-400 font-medium">Expense Categories</span>
             </div>
           </div>
+          <span id="categoryCountBadge" class="text-xs font-bold text-slate-400 bg-surface-2 px-2.5 py-1 rounded-xl border border-slate-border/50">
+            ... รายการ
+          </span>
+        </div>
 
-          <div class="space-y-2.5" id="categoryList">
-            <!-- Loading placeholder -->
-            <div class="h-14 bg-slate-700/30 rounded-xl animate-pulse"></div>
-            <div class="h-14 bg-slate-700/30 rounded-xl animate-pulse"></div>
-            <div class="h-14 bg-slate-700/30 rounded-xl animate-pulse"></div>
+        <!-- Add Category Form -->
+        <div class="mb-6">
+          <label class="block text-xs font-bold text-slate-300 mb-2">เพิ่มหมวดหมู่ใหม่</label>
+          <div class="flex gap-2.5">
+            <div class="relative flex-1">
+              <i class="fa-solid fa-tag absolute left-3.5 top-1/2 -translate-y-1/2 text-mint text-xs"></i>
+              <input id="newCategory" type="text"
+                class="w-full bg-surface-0 border border-slate-border text-white text-xs sm:text-sm font-medium rounded-2xl py-3 pl-9 pr-3 outline-none focus:border-mint focus:ring-2 focus:ring-mint/20 transition placeholder-slate-500"
+                placeholder="เช่น อาหาร, เดินทาง, ช้อปปิ้ง..." />
+            </div>
+            <button onclick="addItem('category')" type="button"
+              class="bg-gradient-to-r from-mint to-mint-hover hover:from-mint-light hover:to-mint text-void font-extrabold text-xs sm:text-sm px-5 sm:px-6 rounded-2xl transition-all duration-200 shadow-glow-mint active:scale-[0.98] cursor-pointer flex items-center gap-1.5 flex-shrink-0">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>เพิ่ม</span>
+            </button>
           </div>
-        </section>
+        </div>
 
-        <!-- Cards Section -->
-        <section class="bg-slate-800 p-8 rounded-2xl border border-slate-border shadow-lg">
-          <div class="flex items-center gap-3 mb-8">
-            <div
-              class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.1)]">
+        <!-- Category Items List -->
+        <div class="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="categoryList">
+          <!-- Loading placeholders -->
+          <div class="h-14 bg-surface-0/60 border border-slate-border/40 rounded-2xl animate-pulse"></div>
+          <div class="h-14 bg-surface-0/60 border border-slate-border/40 rounded-2xl animate-pulse"></div>
+          <div class="h-14 bg-surface-0/60 border border-slate-border/40 rounded-2xl animate-pulse"></div>
+        </div>
+      </section>
+
+      <!-- Cards / Accounts Section Card -->
+      <section class="glass-card rounded-3xl p-6 sm:p-7 flex flex-col">
+        
+        <div class="flex items-center justify-between pb-5 border-b border-surface-3/70 mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-sm shadow-[0_0_15px_rgba(99,102,241,0.15)]">
               <i class="fa-solid fa-credit-card"></i>
             </div>
-            <h2 class="text-xl font-bold text-white">บัญชี / บัตร</h2>
-          </div>
-
-          <div class="mb-10">
-            <label
-              class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest px-1">เพิ่มชื่อบัตรใหม่</label>
-            <div class="flex gap-3">
-              <input id="newCard"
-                class="flex-1 bg-slate-700 border border-slate-600 text-gray-200 text-sm font-semibold p-4 rounded-xl outline-none focus:border-mint focus:ring-1 focus:ring-mint transition placeholder-gray-500"
-                placeholder="ระบุชื่อบัตร..." />
-              <button onclick="addItem('card')"
-                class="bg-mint hover:bg-mint-hover text-slate-900 font-extrabold px-7 rounded-xl transition shadow-[0_2px_15px_rgba(74,222,128,0.2)]">เพิ่ม</button>
+            <div>
+              <h2 class="text-lg font-bold text-white leading-tight">บัญชี / บัตรเครดิต</h2>
+              <span class="text-[11px] text-slate-400 font-medium">Cards & Accounts</span>
             </div>
           </div>
+          <span id="cardCountBadge" class="text-xs font-bold text-slate-400 bg-surface-2 px-2.5 py-1 rounded-xl border border-slate-border/50">
+            ... ใบ
+          </span>
+        </div>
 
-          <div class="space-y-2.5" id="cardList">
-            <!-- Loading placeholder -->
-            <div class="h-14 bg-slate-700/30 rounded-xl animate-pulse"></div>
-            <div class="h-14 bg-slate-700/30 rounded-xl animate-pulse"></div>
-            <div class="h-14 bg-slate-700/30 rounded-xl animate-pulse"></div>
+        <!-- Add Card Form -->
+        <div class="mb-6">
+          <label class="block text-xs font-bold text-slate-300 mb-2">เพิ่มชื่อบัตรใหม่</label>
+          <div class="flex gap-2.5">
+            <div class="relative flex-1">
+              <i class="fa-regular fa-credit-card absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-400 text-xs"></i>
+              <input id="newCard" type="text"
+                class="w-full bg-surface-0 border border-slate-border text-white text-xs sm:text-sm font-medium rounded-2xl py-3 pl-9 pr-3 outline-none focus:border-mint focus:ring-2 focus:ring-mint/20 transition placeholder-slate-500"
+                placeholder="เช่น KBank Passion, SCB CardX..." />
+            </div>
+            <button onclick="addItem('card')" type="button"
+              class="bg-gradient-to-r from-mint to-mint-hover hover:from-mint-light hover:to-mint text-void font-extrabold text-xs sm:text-sm px-5 sm:px-6 rounded-2xl transition-all duration-200 shadow-glow-mint active:scale-[0.98] cursor-pointer flex items-center gap-1.5 flex-shrink-0">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>เพิ่ม</span>
+            </button>
           </div>
-        </section>
-      </div>
+        </div>
+
+        <!-- Card Items List -->
+        <div class="space-y-2 max-h-[460px] overflow-y-auto pr-1" id="cardList">
+          <!-- Loading placeholders -->
+          <div class="h-14 bg-surface-0/60 border border-slate-border/40 rounded-2xl animate-pulse"></div>
+          <div class="h-14 bg-surface-0/60 border border-slate-border/40 rounded-2xl animate-pulse"></div>
+          <div class="h-14 bg-surface-0/60 border border-slate-border/40 rounded-2xl animate-pulse"></div>
+        </div>
+      </section>
+
     </div>
   </main>
 
-  <!-- Toast Notification Container -->
+  <!-- Toast Notification Pill -->
   <div id="toast"
-    class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white px-6 py-3 rounded-2xl shadow-2xl transition-all border-l-4 border-l-mint z-[2000] opacity-0 translate-y-10">
-    <div class="flex items-center gap-3">
-      <i class="fa-solid fa-circle-check text-mint" id="toastIcon"></i>
-      <span id="toastMessage" class="text-xs font-bold font-sans">บันทึกสำเร็จ!</span>
-    </div>
+    class="fixed top-6 left-1/2 -translate-x-1/2 bg-surface-1/90 backdrop-blur-xl border border-slate-border text-white px-5 py-3 rounded-2xl shadow-popover transition-all duration-300 flex items-center gap-3 z-[2000] opacity-0 -translate-y-10 border-l-4 border-l-mint pointer-events-none">
+    <i class="fa-solid fa-circle-check text-mint text-base" id="toastIcon"></i>
+    <span id="toastMessage" class="text-xs font-bold text-white">บันทึกสำเร็จ!</span>
   </div>
 
   <!-- Script -->
-  <script type="module" src="./js/manage.js"></script>
+  <script type="module" src="./js/manage.js?v=1.0.1"></script>
 </body>
 
 </html>

@@ -1,7 +1,6 @@
 import { applyTheme, toggleDarkMode } from './theme.js';
 import { checkLogin, logout } from './auth.js';
-
-const URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
+import { fetchSheet, SHEET_URL, setCache, CACHE_KEYS } from './sheets.js';
 
 document.getElementById('themeLabel')?.addEventListener('click', toggleDarkMode);
 document.querySelector('button[onclick="logout()"]')?.addEventListener('click', logout);
@@ -21,53 +20,113 @@ function toggleLoading(show) {
     }
 }
 
-async function fetchList(sheetName) {
-  const res = await fetch(`${URL}?sheet=${sheetName}`);
-  return await res.json();
+const categoryIcons = {
+    "อาหาร": "fa-utensils",
+    "Food": "fa-utensils",
+    "Dining": "fa-utensils",
+    "เดินทาง": "fa-car",
+    "Transport": "fa-car",
+    "Travel": "fa-car",
+    "ช้อปปิ้ง": "fa-bag-shopping",
+    "Shopping": "fa-bag-shopping",
+    "บันเทิง": "fa-gamepad",
+    "Entertainment": "fa-gamepad",
+    "ที่พัก": "fa-house",
+    "Housing": "fa-house",
+    "Rent": "fa-house",
+    "สุขภาพ": "fa-heart-pulse",
+    "Health": "fa-heart-pulse",
+    "รายได้": "fa-money-bill-wave",
+    "Income": "fa-money-bill-wave"
+};
+
+function getIconForCategory(category) {
+    return categoryIcons[category] || "fa-tag";
 }
 
-async function renderLists() {
-  toggleLoading(true);
-  try {
-    const categories = await fetchList("Categories");
-    const cards = await fetchList("Cards");
-
+function updateCategoryDOM(categories) {
     const categoryList = document.getElementById('categoryList');
-    const cardList = document.getElementById('cardList');
+    const categoryCountBadge = document.getElementById('categoryCountBadge');
+
+    if (categoryCountBadge && Array.isArray(categories)) {
+        categoryCountBadge.textContent = `${categories.length} รายการ`;
+    }
 
     if (categoryList) {
-        categoryList.innerHTML = categories.map(c => `
-            <div class="flex justify-between items-center bg-slate-700/40 hover:bg-slate-700 transition px-5 py-4 rounded-xl group border border-slate-700/50">
-                <div class="flex items-center gap-3">
-                    <div class="w-2 h-2 rounded-full bg-mint shadow-[0_0_8px_rgba(74,222,128,0.5)]"></div>
-                    <span class="text-sm font-bold text-gray-200">${c.name}</span>
+        if (!categories || categories.length === 0) {
+            categoryList.innerHTML = '<div class="text-center py-8 text-xs text-slate-400 font-medium">ยังไม่มีหมวดหมู่</div>';
+        } else {
+            categoryList.innerHTML = categories.map(c => {
+                const icon = getIconForCategory(c.name);
+                return `
+                <div class="flex justify-between items-center bg-surface-0/70 hover:bg-surface-2 transition-all duration-200 px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl group border border-slate-border/50 hover:border-mint/30">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-8 h-8 rounded-xl bg-surface-2 group-hover:bg-mint/10 text-mint flex items-center justify-center text-xs transition-colors flex-shrink-0 border border-slate-border/50">
+                            <i class="fa-solid ${icon}"></i>
+                        </div>
+                        <span class="text-xs sm:text-sm font-bold text-white truncate">${c.name}</span>
+                    </div>
+                    <button onclick="deleteItem('category','${c.name}')" type="button" class="text-xs font-bold text-slate-400 hover:text-coral transition-colors px-2.5 py-1.5 rounded-xl hover:bg-coral-dim cursor-pointer flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                        <span class="hidden sm:inline">ลบ</span>
+                    </button>
                 </div>
-                <button onclick="deleteItem('category','${c.name}')" class="text-xs font-extrabold text-gray-500 hover:text-red-400 transition opacity-0 group-hover:opacity-100 uppercase tracking-widest">
-                    <i class="fa-solid fa-trash-can mr-1"></i> ลบ
-                </button>
-            </div>
-        `).join('');
+            `;}).join('');
+        }
+    }
+}
+
+function updateCardDOM(cards) {
+    const cardList = document.getElementById('cardList');
+    const cardCountBadge = document.getElementById('cardCountBadge');
+
+    if (cardCountBadge && Array.isArray(cards)) {
+        cardCountBadge.textContent = `${cards.length} ใบ`;
     }
 
     if (cardList) {
-        cardList.innerHTML = cards.map(c => `
-            <div class="flex justify-between items-center bg-slate-700/40 hover:bg-slate-700 transition px-5 py-4 rounded-xl group border border-slate-700/50">
-                <div class="flex items-center gap-3">
-                    <div class="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.5)]"></div>
-                    <span class="text-sm font-bold text-gray-200">${c.name}</span>
+        if (!cards || cards.length === 0) {
+            cardList.innerHTML = '<div class="text-center py-8 text-xs text-slate-400 font-medium">ยังไม่มีข้อมูลบัตร</div>';
+        } else {
+            cardList.innerHTML = cards.map(c => `
+                <div class="flex justify-between items-center bg-surface-0/70 hover:bg-surface-2 transition-all duration-200 px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl group border border-slate-border/50 hover:border-indigo-400/30">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-8 h-8 rounded-xl bg-surface-2 group-hover:bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xs transition-colors flex-shrink-0 border border-slate-border/50">
+                            <i class="fa-solid fa-credit-card"></i>
+                        </div>
+                        <span class="text-xs sm:text-sm font-bold text-white truncate">${c.name}</span>
+                    </div>
+                    <button onclick="deleteItem('card','${c.name}')" type="button" class="text-xs font-bold text-slate-400 hover:text-coral transition-colors px-2.5 py-1.5 rounded-xl hover:bg-coral-dim cursor-pointer flex items-center gap-1">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                        <span class="hidden sm:inline">ลบ</span>
+                    </button>
                 </div>
-                <button onclick="deleteItem('card','${c.name}')" class="text-xs font-extrabold text-gray-500 hover:text-red-400 transition opacity-0 group-hover:opacity-100 uppercase tracking-widest">
-                    <i class="fa-solid fa-trash-can mr-1"></i> ลบ
-                </button>
-            </div>
-        `).join('');
+            `).join('');
+        }
     }
+}
+
+async function renderLists(showOverlay = false) {
+  if (showOverlay) toggleLoading(true);
+  try {
+    // SWR fetch with instant cache return and background revalidation
+    const categories = await fetchSheet("Categories", {
+        onFreshData: updateCategoryDOM,
+        forceRefresh: showOverlay
+    });
+    updateCategoryDOM(categories);
+
+    const cards = await fetchSheet("Cards", {
+        onFreshData: updateCardDOM,
+        forceRefresh: showOverlay
+    });
+    updateCardDOM(cards);
 
   } catch (error) {
     console.error("Error rendering lists:", error);
     showToast("ไม่สามารถโหลดข้อมูลได้", "error");
   } finally {
-    toggleLoading(false);
+    if (showOverlay) toggleLoading(false);
   }
 }
 
@@ -83,7 +142,7 @@ window.addItem = async function(type) {
 
   toggleLoading(true);
   try {
-    await fetch(URL, {
+    await fetch(SHEET_URL, {
       method: 'POST',
       body: JSON.stringify({
         action: 'add',
@@ -93,7 +152,7 @@ window.addItem = async function(type) {
     });
     inputElem.value = '';
     showToast("เพิ่มข้อมูลเรียบร้อยแล้ว!");
-    renderLists();
+    await renderLists(true);
   } catch (error) {
     showToast("เกิดข้อผิดพลาดในการเพิ่มข้อมูล", "error");
     toggleLoading(false);
@@ -105,7 +164,7 @@ window.deleteItem = async function(type, name) {
 
   toggleLoading(true);
   try {
-    const res = await fetch(URL, {
+    const res = await fetch(SHEET_URL, {
       method: 'POST',
       body: JSON.stringify({
         action: 'delete',
@@ -116,7 +175,7 @@ window.deleteItem = async function(type, name) {
     const text = await res.text();
     if (text === 'Deleted') {
       showToast("ลบข้อมูลเรียบร้อยแล้ว");
-      renderLists();
+      await renderLists(true);
     } else {
       showToast("ลบไม่สำเร็จ: " + text, "error");
       toggleLoading(false);
@@ -127,7 +186,25 @@ window.deleteItem = async function(type, name) {
   }
 };
 
-document.addEventListener('DOMContentLoaded', renderLists);
+document.addEventListener('DOMContentLoaded', () => {
+    // Initial instant render from cache without blocking loading overlay
+    renderLists(false);
+
+    // Support Enter key on input fields
+    document.getElementById('newCategory')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            window.addItem('category');
+        }
+    });
+
+    document.getElementById('newCard')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            window.addItem('card');
+        }
+    });
+});
 
 function showToast(message, type = "success") {
     const toast = document.getElementById('toast');
@@ -140,19 +217,19 @@ function showToast(message, type = "success") {
     
     if (type === "error") {
         toast.classList.remove('border-l-mint');
-        toast.classList.add('border-l-red-500');
-        toastIcon.className = "fa-solid fa-circle-exclamation text-red-500";
+        toast.classList.add('border-l-coral');
+        toastIcon.className = "fa-solid fa-circle-exclamation text-coral";
     } else {
         toast.classList.add('border-l-mint');
-        toast.classList.remove('border-l-red-500');
+        toast.classList.remove('border-l-coral');
         toastIcon.className = "fa-solid fa-circle-check text-mint";
     }
 
-    toast.classList.remove('opacity-0', 'translate-y-10');
+    toast.classList.remove('opacity-0', '-translate-y-10');
     toast.classList.add('opacity-100', 'translate-y-0');
 
     setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-10');
+        toast.classList.add('opacity-0', '-translate-y-10');
         toast.classList.remove('opacity-100', 'translate-y-0');
     }, 3000);
 }

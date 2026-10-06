@@ -1,6 +1,6 @@
 import { applyTheme, toggleDarkMode } from './theme.js';
 import { checkLogin, logout } from './auth.js';
-import { fetchSheet, fetchExpenses, postExpense } from './sheets.js';
+import { fetchSheet, fetchExpenses, postExpense, getLastSyncTime } from './sheets.js';
 
 document.getElementById('themeLabel')?.addEventListener('click', toggleDarkMode);
 document.querySelector('button[onclick="logout()"]')?.addEventListener('click', logout);
@@ -9,51 +9,96 @@ document.querySelector('button[onclick="logout()"]')?.addEventListener('click', 
 checkLogin();
 applyTheme();
 
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const cards = await fetchSheet("Cards");
-        const categories = await fetchSheet("Categories");
+function updateSyncStatus(isSyncing = false) {
+    const syncText = document.getElementById('syncStatusText');
+    const syncIcon = document.getElementById('syncIcon');
+    const syncDot = document.getElementById('syncStatusDot');
 
-        const cardSelect = document.getElementById('cardSelect');
-        if (cardSelect && cards) {
-            cardSelect.innerHTML = '<option value="">เลือกบัตร</option>';
-            cards.forEach(card => {
-                const option = document.createElement('option');
-                option.value = card.name;
-                option.textContent = card.name;
-                cardSelect.appendChild(option);
-            });
-        }
+    if (!syncText || !syncIcon) return;
 
-        const categoryContainer = document.getElementById('categoryContainer');
-        if (categoryContainer && categories) {
-            categoryContainer.innerHTML = ''; // Clear loading
-            categories.forEach((cat, index) => {
-                const pill = document.createElement('div');
-                pill.textContent = cat.name;
-                pill.dataset.value = cat.name;
-                
-                const defaultClass = "px-4 py-2 bg-[#23304a] text-gray-300 rounded-lg text-xs font-medium cursor-pointer hover:bg-slate-600 transition flex items-center gap-2 category-pill";
-                const selectedClass = "px-4 py-2 bg-mint rounded-lg text-slate-900 text-xs font-bold cursor-pointer flex items-center gap-2 category-pill selected";
-                
-                pill.className = index === 0 ? selectedClass : defaultClass;
+    if (isSyncing) {
+        syncIcon.classList.add('fa-spin');
+        syncText.textContent = 'กำลังซิงค์...';
+        if (syncDot) syncDot.classList.add('indicator-pulse');
+    } else {
+        syncIcon.classList.remove('fa-spin');
+        const lastTime = getLastSyncTime();
+        syncText.textContent = lastTime ? `ซิงค์ ${lastTime}` : 'ซิงค์แล้ว';
+        if (syncDot) syncDot.classList.remove('indicator-pulse');
+    }
+}
 
-                pill.addEventListener('click', () => {
-                    document.querySelectorAll('.category-pill').forEach(p => {
-                        p.className = defaultClass;
-                        p.classList.remove('selected');
-                    });
-                    pill.className = selectedClass;
+function populateCards(cards) {
+    const cardSelect = document.getElementById('cardSelect');
+    if (cardSelect && Array.isArray(cards)) {
+        cardSelect.innerHTML = '<option value="">เลือกบัตร</option>';
+        cards.forEach(card => {
+            const option = document.createElement('option');
+            option.value = card.name;
+            option.textContent = card.name;
+            cardSelect.appendChild(option);
+        });
+    }
+}
+
+function populateCategories(categories) {
+    const categoryContainer = document.getElementById('categoryContainer');
+    if (categoryContainer && Array.isArray(categories)) {
+        categoryContainer.innerHTML = '';
+        categories.forEach((cat, index) => {
+            const pill = document.createElement('div');
+            pill.textContent = cat.name;
+            pill.dataset.value = cat.name;
+            
+            const defaultClass = "px-3.5 py-2 bg-surface-0 border border-slate-border text-slate-300 rounded-xl text-xs font-semibold cursor-pointer hover:bg-surface-2 hover:border-mint/40 transition-all flex items-center gap-2 category-pill";
+            const selectedClass = "px-3.5 py-2 bg-mint text-void font-extrabold rounded-xl text-xs cursor-pointer shadow-glow-mint flex items-center gap-2 category-pill selected";
+            
+            pill.className = index === 0 ? selectedClass : defaultClass;
+
+            pill.addEventListener('click', () => {
+                document.querySelectorAll('.category-pill').forEach(p => {
+                    p.className = defaultClass;
+                    p.classList.remove('selected');
                 });
-
-                categoryContainer.appendChild(pill);
+                pill.className = selectedClass;
             });
-        }
 
-        // Fetch all expenses initially
-        const expenses = await fetchExpenses();
+            categoryContainer.appendChild(pill);
+        });
+    }
+}
 
-        // Setup Global Month/Year Filter
+document.addEventListener('DOMContentLoaded', async () => {
+    updateSyncStatus(true);
+    try {
+        // 1. Fetch Cards & Categories with SWR (Instant render from cache + background revalidate)
+        const cards = await fetchSheet("Cards", {
+            onFreshData: (freshCards) => {
+                populateCards(freshCards);
+            }
+        });
+        populateCards(cards);
+
+        const categories = await fetchSheet("Categories", {
+            onFreshData: (freshCats) => {
+                populateCategories(freshCats);
+            }
+        });
+        populateCategories(categories);
+
+        // 2. Fetch Expenses with SWR (Instant render from cache + background revalidate)
+        const expenses = await fetchExpenses({
+            onFreshData: (freshExpenses) => {
+                allExpensesCache = freshExpenses;
+                const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
+                if (currentMonthVal) {
+                    refreshDashboard(freshExpenses, currentMonthVal);
+                }
+                updateSyncStatus(false);
+            }
+        });
+
+        // Setup Global Month/Year Filter (Renders initial dashboard immediately)
         initGlobalFilter(expenses);
         
         // Setup Filter Bar (for search/category/card)
@@ -65,8 +110,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Modal Logic
         initTransactionModal();
 
+        // Bind Force Refresh button
+        document.getElementById('syncDashboardBtn')?.addEventListener('click', async () => {
+            updateSyncStatus(true);
+            try {
+                const fresh = await fetchExpenses({ forceRefresh: true });
+                allExpensesCache = fresh;
+                const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
+                if (currentMonthVal) {
+                    refreshDashboard(fresh, currentMonthVal);
+                }
+                await fetchSheet("Cards", { forceRefresh: true, onFreshData: populateCards });
+                await fetchSheet("Categories", { forceRefresh: true, onFreshData: populateCategories });
+                showToast("ซิงค์ข้อมูลล่าสุดเรียบร้อย!");
+            } catch (err) {
+                console.error("Force sync failed:", err);
+                showToast("ไม่สามารถซิงค์ข้อมูลได้", "error");
+            } finally {
+                updateSyncStatus(false);
+            }
+        });
+
     } catch (err) {
         console.error("Error loading dashboard data:", err);
+    } finally {
+        updateSyncStatus(false);
     }
 });
 
@@ -886,25 +954,29 @@ function renderCurrentTransactionPage() {
         const icon = getIconForCategory(item.category);
 
         const row = document.createElement('div');
-        row.className = "grid grid-cols-12 gap-4 items-center py-4 px-2 hover:bg-slate-700/50 rounded-xl transition cursor-pointer";
+        row.className = "flex items-center justify-between py-3.5 px-3 sm:grid sm:grid-cols-12 sm:gap-3 hover:bg-surface-2/60 rounded-2xl transition-colors cursor-pointer group border-b border-surface-3/30 sm:border-b-0";
         row.innerHTML = `
-            <div class="col-span-3 flex flex-col">
-                <span class="text-xs font-bold text-white mb-0.5">${dateStr}</span>
-                <span class="text-[10px] text-gray-400 font-bold tracking-wide">${timeStr}</span>
-            </div>
-            <div class="col-span-3 flex items-center gap-3 w-full">
-                <div class="w-8 h-8 rounded-lg bg-slate-700 flex-shrink-0 flex items-center justify-center ${isIncome ? 'text-mint' : 'text-gray-400'} text-xs">
+            <div class="flex items-center gap-3 sm:col-span-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl bg-surface-2 group-hover:bg-surface-3 flex-shrink-0 flex items-center justify-center ${isIncome ? 'text-mint bg-mint/10' : 'text-slate-400'} text-xs transition-colors border border-slate-border/50">
                     <i class="fa-solid ${icon}"></i>
                 </div>
-                <span class="text-xs font-bold text-white truncate">${item.category || 'ทั่วไป'}</span>
+                <div class="flex flex-col min-w-0">
+                    <span class="text-xs font-bold text-white truncate sm:hidden">${item.category || 'ทั่วไป'}</span>
+                    <span class="text-xs font-bold text-white mb-0.5 hidden sm:block">${dateStr}</span>
+                    <span class="text-[10px] text-slate-400 font-medium tracking-wide">${timeStr ? (dateStr + ' • ' + timeStr) : dateStr}</span>
+                </div>
             </div>
-            <div class="col-span-4 flex items-center">
-                <span class="text-xs font-medium text-gray-300 truncate">${item.note || '-'}</span>
+            <div class="hidden sm:flex sm:col-span-3 items-center min-w-0">
+                <span class="text-xs font-semibold text-slate-200 truncate">${item.category || 'ทั่วไป'}</span>
             </div>
-            <div class="col-span-2 text-right">
-                <span class="text-sm font-bold ${isIncome ? 'text-mint' : 'text-white'}">
+            <div class="hidden sm:flex sm:col-span-4 items-center min-w-0">
+                <span class="text-xs font-medium text-slate-400 truncate">${item.note || '-'}</span>
+            </div>
+            <div class="flex flex-col items-end sm:col-span-2 sm:text-right flex-shrink-0">
+                <span class="text-xs sm:text-sm font-extrabold ${isIncome ? 'text-mint' : 'text-white'} tabular-numbers">
                     ${isIncome ? '+' : ''}${amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
+                ${item.note ? `<span class="text-[10px] text-slate-400 truncate max-w-[130px] sm:hidden text-right">${item.note}</span>` : ''}
             </div>
         `;
         transactionList.appendChild(row);

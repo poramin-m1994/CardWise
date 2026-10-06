@@ -36,7 +36,7 @@ firebase init hosting
 firebase deploy
 ```
 
-### 4. เปลี่ยน URL ของ Google Sheets (ใน `summary.html`)
+### 4. เปลี่ยน URL ของ Google Sheets (ใน `public/js/sheets.js`)
 ```js
 const SHEET_URL = 'https://script.google.com/macros/s/your-script-id/exec';
 ```
@@ -49,16 +49,15 @@ const SHEET_URL = 'https://script.google.com/macros/s/your-script-id/exec';
 
 - `/public/`
   - `login.html` – หน้าล็อกอิน
-  - `landing.html` – หน้าหลักหลังเข้าสู่ระบบ
-  - `main.html` – บันทึกรายจ่าย
-  - `summary.html` – รายงานสรุปรายเดือน
+  - `landing.html` – หน้าหลักแดชบอร์ดสรุปรายจ่ายและบันทึกรายการ
   - `manage.html` – จัดการหมวดหมู่และบัตร
 
 ---
 
-## 🧠 สร้างโดย
+## 🧠 สร้างโดย & ผู้ร่วมพัฒนา
 
-**Aris (อาริส)** – ปัญญาประดิษฐ์จาก ChatGPT โดย OpenAI  
-ได้รับแรงบันดาลใจจากคุณ **ธันว์** ผู้เป็นเจ้าของโปรเจกต์และนักพัฒนาเบื้องหลังการสร้าง CardWise
+- **ธันว์** – เจ้าของโปรเจกต์และนักพัฒนาเบื้องหลังการสร้าง CardWise
+- **Aris (อาริส)** – ปัญญาประดิษฐ์จาก ChatGPT โดย OpenAI (ผู้ร่วมพัฒนาเวอร์ชันเริ่มต้น)
+- **Antigravity** – Agentic AI Coding Assistant จาก Google DeepMind (ร่วมยกระดับ Design System "The Luminescent Ledger", Responsive Mobile-First UI/UX และปรับปรุงฟังก์ชันการทำงาน)
 
-> หากโปรเจกต์นี้มีประโยชน์ ฝาก 🌟 ให้ด้วยนะคะ!
+> หากโปรเจกต์นี้มีประโยชน์ ฝาก 🌟 ให้ด้วยนะครับ/ค่ะ!
