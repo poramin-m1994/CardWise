@@ -110,6 +110,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Modal Logic
         initTransactionModal();
 
+        // Initialize Trend Summary Collapse
+        initTrendSummaryCollapse();
+
         // Bind Force Refresh button
         document.getElementById('syncDashboardBtn')?.addEventListener('click', async () => {
             updateSyncStatus(true);
@@ -563,8 +566,8 @@ async function updateMonthlyInsights(expenses, refMonth, refYear) {
                     backgroundColor: (ctx) => {
                         return ctx.dataIndex === 5 ? '#4ade80' : '#23304a';
                     },
-                    borderRadius: 4,
-                    barThickness: 10
+                    borderRadius: 6,
+                    maxBarThickness: 18
                 }]
             },
             options: {
@@ -590,6 +593,68 @@ async function updateMonthlyInsights(expenses, refMonth, refYear) {
             }
         });
     }
+
+    // Calculate 6-month summary metrics
+    const totalSpent6M = data.reduce((sum, v) => sum + v, 0);
+    const avgSpent = totalSpent6M / 6;
+
+    let peakMonth = null;
+    let maxSpent = -1;
+    last6Months.forEach(item => {
+        if (item.amount > maxSpent) {
+            maxSpent = item.amount;
+            peakMonth = item;
+        }
+    });
+
+    const avgElem = document.getElementById('trendAvgAmount');
+    const peakElem = document.getElementById('trendPeakInfo');
+
+    if (avgElem) {
+        avgElem.textContent = `฿${avgSpent.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (peakElem) {
+        if (peakMonth && peakMonth.amount > 0) {
+            peakElem.textContent = `${peakMonth.label} (฿${peakMonth.amount >= 1000 ? (peakMonth.amount / 1000).toFixed(1) + 'k' : peakMonth.amount.toFixed(0)})`;
+        } else {
+            peakElem.textContent = '-';
+        }
+    }
+}
+
+function initTrendSummaryCollapse() {
+    const toggleBtn = document.getElementById('toggleTrendSummaryBtn');
+    const panel = document.getElementById('trendSummaryPanel');
+    const icon = document.getElementById('trendSummaryIcon');
+
+    if (!toggleBtn || !panel) return;
+
+    // Retrieve saved state (default is closed 'false')
+    const savedState = localStorage.getItem('cardwise_trend_summary_open');
+    let isOpen = savedState === 'true';
+
+    const updateUI = (open) => {
+        if (open) {
+            panel.classList.remove('max-h-0', 'opacity-0', 'pointer-events-none');
+            panel.classList.add('max-h-28', 'opacity-100');
+            if (icon) icon.classList.add('rotate-180');
+        } else {
+            panel.classList.add('max-h-0', 'opacity-0', 'pointer-events-none');
+            panel.classList.remove('max-h-28', 'opacity-100');
+            if (icon) icon.classList.remove('rotate-180');
+        }
+        setTimeout(() => {
+            barChart?.resize();
+        }, 310);
+    };
+
+    updateUI(isOpen);
+
+    toggleBtn.addEventListener('click', () => {
+        isOpen = !isOpen;
+        localStorage.setItem('cardwise_trend_summary_open', String(isOpen));
+        updateUI(isOpen);
+    });
 }
 
 function renderDoughnutSection({
@@ -680,7 +745,7 @@ function renderDoughnutSection({
                         legend: { display: false },
                         tooltip: { enabled: false }
                     },
-                    cutout: '78%'
+                    cutout: '74%'
                 }
             });
         }
@@ -749,7 +814,7 @@ function renderDoughnutSection({
                         }
                     }
                 },
-                cutout: '78%'
+                cutout: '74%'
             }
         });
     }
@@ -816,23 +881,16 @@ async function updateCategorySpending(expenses, refMonth, refYear) {
 }
 
 const categoryIcons = {
-    "อาหาร": "fa-utensils",
-    "Food": "fa-utensils",
-    "Dining": "fa-utensils",
-    "เดินทาง": "fa-car",
-    "Transport": "fa-car",
-    "Travel": "fa-car",
-    "ช้อปปิ้ง": "fa-bag-shopping",
-    "Shopping": "fa-bag-shopping",
-    "บันเทิง": "fa-gamepad",
-    "Entertainment": "fa-gamepad",
-    "ที่พัก": "fa-house",
-    "Housing": "fa-house",
-    "Rent": "fa-house",
-    "สุขภาพ": "fa-heart-pulse",
-    "Health": "fa-heart-pulse",
-    "รายได้": "fa-money-bill-wave",
-    "Income": "fa-money-bill-wave"
+    "อาหาร/เครื่องดิ่ม": "fa-utensils",
+    "การเดินทาง": "fa-car",
+    "ช้อปปิ้ง/บริการ": "fa-bag-shopping",
+    "ร้านค้า": "fa-bag-shopping",
+    "ไลฟ์สไตล์": "fa-gamepad",
+    "สาธารณูปโภค": "fa-house",
+    "การรักษาพยาบาล": "fa-heart-pulse",
+    "ชำระค่าบัตรแล้ว": "fa-money-bill-wave",
+    "Cash Back": "fa-money-bill-wave",
+    "Fixed Cost": "fa-money-bill-wave",
 };
 
 function getIconForCategory(category) {
@@ -954,10 +1012,10 @@ function renderCurrentTransactionPage() {
         const icon = getIconForCategory(item.category);
 
         const row = document.createElement('div');
-        row.className = "flex items-center justify-between py-3.5 px-3 sm:grid sm:grid-cols-12 sm:gap-3 hover:bg-surface-2/60 rounded-2xl transition-colors cursor-pointer group border-b border-surface-3/30 sm:border-b-0";
+        row.className = "flex items-center justify-between py-2 sm:py-2.5 px-2 sm:px-2.5 sm:grid sm:grid-cols-12 sm:gap-2.5 hover:bg-surface-2/60 rounded-xl transition-colors cursor-pointer group border-b border-surface-3/30 sm:border-b-0";
         row.innerHTML = `
-            <div class="flex items-center gap-3 sm:col-span-3 min-w-0">
-                <div class="w-9 h-9 rounded-xl bg-surface-2 group-hover:bg-surface-3 flex-shrink-0 flex items-center justify-center ${isIncome ? 'text-mint bg-mint/10' : 'text-slate-400'} text-xs transition-colors border border-slate-border/50">
+            <div class="flex items-center gap-2.5 sm:col-span-3 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-surface-2 group-hover:bg-surface-3 flex-shrink-0 flex items-center justify-center ${isIncome ? 'text-mint bg-mint/10' : 'text-slate-400'} text-xs transition-colors border border-slate-border/50">
                     <i class="fa-solid ${icon}"></i>
                 </div>
                 <div class="flex flex-col min-w-0">
