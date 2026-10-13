@@ -1,0 +1,31 @@
+# ==========================================
+# CardWise Application Configuration
+# ==========================================
+
+app:
+  name: "CardWise"
+  version: "1.0.1"
+  currency: "฿"
+  theme:
+    default_mode: "dark"
+
+# Google Sheets Configuration
+google_sheets:
+  # Google Apps Script Web App URL
+  script_url: "https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec"
+  
+  # Sheet Names
+  sheets:
+    expenses: "Expenses"
+    cards: "Cards"
+    categories: "Categories"
+    users: "Users"
+
+# Local Storage Cache Keys
+cache:
+  enabled: true
+  keys:
+    expenses: "cardwise_cache_expenses"
+    cards: "cardwise_cache_cards"
+    categories: "cardwise_cache_categories"
+    last_sync: "cardwise_last_sync_time"

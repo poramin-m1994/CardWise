@@ -1,10 +1,14 @@
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwrcejldAoKiI2v0xUI24aXuf_ZdN78u94se0o46NEDFW-AhxG67LqvkvlDVfcPn3Rmgw/exec';
+import { getGoogleSheetUrl, getConfigSync } from './config.js';
+
+// Fallback constant (synced from config)
+const SHEET_URL = getConfigSync('google_sheets.script_url', '');
+
 
 const CACHE_KEYS = {
-  EXPENSES: 'cardwise_cache_expenses',
-  CARDS: 'cardwise_cache_cards',
-  CATEGORIES: 'cardwise_cache_categories',
-  LAST_SYNC: 'cardwise_last_sync_time'
+  EXPENSES: getConfigSync('cache.keys.expenses', 'cardwise_cache_expenses'),
+  CARDS: getConfigSync('cache.keys.cards', 'cardwise_cache_cards'),
+  CATEGORIES: getConfigSync('cache.keys.categories', 'cardwise_cache_categories'),
+  LAST_SYNC: getConfigSync('cache.keys.last_sync', 'cardwise_last_sync_time')
 };
 
 /**
@@ -67,11 +71,12 @@ function getLastSyncTime() {
 async function fetchSheet(sheetName, { onFreshData = null, forceRefresh = false } = {}) {
   const cacheKey = sheetName.toLowerCase() === 'cards' ? CACHE_KEYS.CARDS : CACHE_KEYS.CATEGORIES;
   const cachedData = getCache(cacheKey);
+  const targetUrl = await getGoogleSheetUrl();
 
   // Background fetcher function
   const fetchFresh = async () => {
     try {
-      const res = await fetch(`${SHEET_URL}?sheet=${sheetName}`);
+      const res = await fetch(`${targetUrl}?sheet=${sheetName}`);
       const freshData = await res.json();
       if (Array.isArray(freshData)) {
         const isDifferent = JSON.stringify(cachedData) !== JSON.stringify(freshData);
@@ -102,11 +107,12 @@ async function fetchSheet(sheetName, { onFreshData = null, forceRefresh = false 
  */
 async function fetchExpenses({ onFreshData = null, forceRefresh = false } = {}) {
   const cachedData = getCache(CACHE_KEYS.EXPENSES);
+  const targetUrl = await getGoogleSheetUrl();
 
   // Background fetcher function
   const fetchFresh = async () => {
     try {
-      const res = await fetch(SHEET_URL);
+      const res = await fetch(targetUrl);
       const freshData = await res.json();
       if (Array.isArray(freshData)) {
         const isDifferent = JSON.stringify(cachedData) !== JSON.stringify(freshData);
@@ -143,12 +149,13 @@ async function postExpense(data) {
   setCache(CACHE_KEYS.EXPENSES, updatedCache);
 
   try {
-    const res = await fetch(SHEET_URL, {
+    const targetUrl = await getGoogleSheetUrl();
+    const res = await fetch(targetUrl, {
       method: 'POST',
       body: JSON.stringify(data)
     });
     // Invalidate and fetch latest accurate data
-    const fresh = await fetch(SHEET_URL).then(r => r.json());
+    const fresh = await fetch(targetUrl).then(r => r.json());
     if (Array.isArray(fresh)) {
       setCache(CACHE_KEYS.EXPENSES, fresh);
     }
@@ -163,6 +170,7 @@ async function postExpense(data) {
 export {
   SHEET_URL,
   CACHE_KEYS,
+  getGoogleSheetUrl,
   fetchSheet,
   fetchExpenses,
   postExpense,

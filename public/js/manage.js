@@ -1,6 +1,7 @@
 import { applyTheme, toggleDarkMode } from './theme.js';
 import { checkLogin, logout } from './auth.js';
-import { fetchSheet, SHEET_URL, setCache, CACHE_KEYS } from './sheets.js';
+import { fetchSheet, getGoogleSheetUrl, setCache, CACHE_KEYS } from './sheets.js';
+
 
 document.getElementById('themeLabel')?.addEventListener('click', toggleDarkMode);
 document.querySelector('button[onclick="logout()"]')?.addEventListener('click', logout);
@@ -142,7 +143,8 @@ window.addItem = async function(type) {
 
   toggleLoading(true);
   try {
-    await fetch(SHEET_URL, {
+    const sheetUrl = await getGoogleSheetUrl();
+    await fetch(sheetUrl, {
       method: 'POST',
       body: JSON.stringify({
         action: 'add',
@@ -164,7 +166,8 @@ window.deleteItem = async function(type, name) {
 
   toggleLoading(true);
   try {
-    const res = await fetch(SHEET_URL, {
+    const sheetUrl = await getGoogleSheetUrl();
+    const res = await fetch(sheetUrl, {
       method: 'POST',
       body: JSON.stringify({
         action: 'delete',
