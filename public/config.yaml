@@ -16,10 +16,11 @@ google_sheets:
   
   # Sheet Names
   sheets:
-    expenses: "Expenses"
+    expenses: "Data"
     cards: "Cards"
     categories: "Categories"
     users: "Users"
+    fixed_costs: "FixedCosts"
 
 # Local Storage Cache Keys
 cache:
@@ -28,4 +29,5 @@ cache:
     expenses: "cardwise_cache_expenses"
     cards: "cardwise_cache_cards"
     categories: "cardwise_cache_categories"
+    fixed_costs: "cardwise_cache_fixed_costs"
     last_sync: "cardwise_last_sync_time"

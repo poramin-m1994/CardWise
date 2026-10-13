@@ -8,6 +8,7 @@ const CACHE_KEYS = {
   EXPENSES: getConfigSync('cache.keys.expenses', 'cardwise_cache_expenses'),
   CARDS: getConfigSync('cache.keys.cards', 'cardwise_cache_cards'),
   CATEGORIES: getConfigSync('cache.keys.categories', 'cardwise_cache_categories'),
+  FIXED_COSTS: getConfigSync('cache.keys.fixed_costs', 'cardwise_cache_fixed_costs'),
   LAST_SYNC: getConfigSync('cache.keys.last_sync', 'cardwise_last_sync_time')
 };
 
@@ -69,7 +70,13 @@ function getLastSyncTime() {
  * Fetch a specific sheet (e.g., Cards, Categories) with SWR Caching
  */
 async function fetchSheet(sheetName, { onFreshData = null, forceRefresh = false } = {}) {
-  const cacheKey = sheetName.toLowerCase() === 'cards' ? CACHE_KEYS.CARDS : CACHE_KEYS.CATEGORIES;
+  let cacheKey = CACHE_KEYS.CATEGORIES;
+  const lower = sheetName.toLowerCase();
+  if (lower === 'cards') {
+    cacheKey = CACHE_KEYS.CARDS;
+  } else if (lower === 'fixedcosts' || lower === 'fixed_costs') {
+    cacheKey = CACHE_KEYS.FIXED_COSTS;
+  }
   const cachedData = getCache(cacheKey);
   const targetUrl = await getGoogleSheetUrl();
 
@@ -166,6 +173,59 @@ async function postExpense(data) {
   }
 }
 
+/**
+ * Fetch Fixed Costs list with SWR caching
+ */
+async function fetchFixedCosts(options = {}) {
+  return await fetchSheet('FixedCosts', options);
+}
+
+/**
+ * Post a new Fixed Cost item
+ */
+async function postFixedCost(itemData) {
+  try {
+    const targetUrl = await getGoogleSheetUrl();
+    const res = await fetch(targetUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'add',
+        sheet: 'FixedCosts',
+        data: itemData
+      })
+    });
+    // Invalidate fixed costs cache
+    invalidateCache(CACHE_KEYS.FIXED_COSTS);
+    return res;
+  } catch (err) {
+    console.error('[Sheets] Error posting fixed cost:', err);
+    throw err;
+  }
+}
+
+/**
+ * Delete a Fixed Cost item by id and/or name
+ */
+async function deleteFixedCost(id, name) {
+  try {
+    const targetUrl = await getGoogleSheetUrl();
+    const res = await fetch(targetUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'delete',
+        sheet: 'FixedCosts',
+        id: id,
+        name: name
+      })
+    });
+    invalidateCache(CACHE_KEYS.FIXED_COSTS);
+    return res;
+  } catch (err) {
+    console.error('[Sheets] Error deleting fixed cost:', err);
+    throw err;
+  }
+}
+
 // Explicit Exports
 export {
   SHEET_URL,
@@ -173,6 +233,9 @@ export {
   getGoogleSheetUrl,
   fetchSheet,
   fetchExpenses,
+  fetchFixedCosts,
+  postFixedCost,
+  deleteFixedCost,
   postExpense,
   getCache,
   setCache,

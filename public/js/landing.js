@@ -1,6 +1,9 @@
 import { applyTheme, toggleDarkMode } from './theme.js';
 import { checkLogin, logout } from './auth.js';
-import { fetchSheet, fetchExpenses, postExpense, getLastSyncTime } from './sheets.js';
+import { fetchSheet, fetchExpenses, fetchFixedCosts, postExpense, getLastSyncTime } from './sheets.js';
+
+let allFixedCostsCache = [];
+let cachedCards = [];
 
 document.getElementById('themeLabel')?.addEventListener('click', toggleDarkMode);
 document.querySelector('button[onclick="logout()"]')?.addEventListener('click', logout);
@@ -29,6 +32,7 @@ function updateSyncStatus(isSyncing = false) {
 }
 
 function populateCards(cards) {
+    cachedCards = cards || [];
     const cardSelect = document.getElementById('cardSelect');
     if (cardSelect && Array.isArray(cards)) {
         cardSelect.innerHTML = '<option value="">เลือกบัตร</option>';
@@ -37,6 +41,17 @@ function populateCards(cards) {
             option.value = card.name;
             option.textContent = card.name;
             cardSelect.appendChild(option);
+        });
+    }
+
+    const payFcCardSelect = document.getElementById('payFcCard');
+    if (payFcCardSelect && Array.isArray(cards)) {
+        payFcCardSelect.innerHTML = '<option value="">เลือกบัตร</option>';
+        cards.forEach(card => {
+            const option = document.createElement('option');
+            option.value = card.name;
+            option.textContent = card.name;
+            payFcCardSelect.appendChild(option);
         });
     }
 }
@@ -86,7 +101,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         populateCategories(categories);
 
-        // 2. Fetch Expenses with SWR (Instant render from cache + background revalidate)
+        // 2. Fetch Fixed Costs with SWR
+        const fixedCosts = await fetchFixedCosts({
+            onFreshData: (freshFc) => {
+                allFixedCostsCache = freshFc;
+                const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
+                if (currentMonthVal) {
+                    refreshDashboard(allExpensesCache, currentMonthVal);
+                }
+            }
+        });
+        allFixedCostsCache = fixedCosts;
+
+        // 3. Fetch Expenses with SWR (Instant render from cache + background revalidate)
         const expenses = await fetchExpenses({
             onFreshData: (freshExpenses) => {
                 allExpensesCache = freshExpenses;
@@ -110,6 +137,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Modal Logic
         initTransactionModal();
 
+        // Initialize Pay Fixed Cost Modal
+        initPayFixedCostModal();
+
         // Initialize Trend Summary Collapse
         initTrendSummaryCollapse();
 
@@ -119,6 +149,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const fresh = await fetchExpenses({ forceRefresh: true });
                 allExpensesCache = fresh;
+                await fetchFixedCosts({ 
+                    forceRefresh: true, 
+                    onFreshData: (fc) => { allFixedCostsCache = fc; } 
+                });
                 const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
                 if (currentMonthVal) {
                     refreshDashboard(fresh, currentMonthVal);
@@ -329,6 +363,7 @@ function refreshDashboard(allExpenses, monthKey) {
     renderTransactionHistory(allExpenses, month, year);
     updateCategorySpending(allExpenses, month, year);
     updateMonthlyInsights(allExpenses, month, year);
+    renderMonthlyFixedCosts(allExpenses, allFixedCostsCache, month, year);
 }
 
 function initFilterBar() {
@@ -442,9 +477,9 @@ function initTransactionModal() {
         recordBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังบันทึก...';
 
         try {
-            // Format date for backend (YYYY+543/MM/DD)
+            // Format date for backend (DD/MM/YYYY แบบ พ.ศ.)
             const d = dayjs(dateVal);
-            const formattedDate = `${d.year() + 543}/${String(d.month() + 1).padStart(2, '0')}/${String(d.date()).padStart(2, '0')}`;
+            const formattedDate = `${String(d.date()).padStart(2, '0')}/${String(d.month() + 1).padStart(2, '0')}/${d.year() + 543}`;
 
             const data = {
                 date: formattedDate,
@@ -762,13 +797,18 @@ function renderDoughnutSection({
     sortedCategories.forEach(([cat, val], i) => {
         const percent = ((val / total) * 100).toFixed(0);
         const color = backgroundColors[i];
+        const cleanVal = Math.round(val * 100) / 100;
+        const formattedAmount = cleanVal.toLocaleString('th-TH', {
+            minimumFractionDigits: cleanVal % 1 !== 0 ? 2 : 0,
+            maximumFractionDigits: 2
+        });
 
         const legendItem = document.createElement('div');
-        legendItem.className = "flex items-center gap-3 text-xs font-bold text-white";
+        legendItem.className = "flex items-center gap-2 sm:gap-2.5 text-xs font-bold text-white min-w-0";
         legendItem.innerHTML = `
             <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${color}"></div>
-            <span class="truncate">${cat}</span>
-            <span class="text-gray-400 font-normal ml-auto">(${percent}%)</span>
+            <span class="truncate min-w-0" title="${cat} (${formattedAmount})">${cat} <span class="text-slate-400 font-normal tabular-numbers">(${formattedAmount})</span></span>
+            <span class="text-gray-400 font-normal ml-auto flex-shrink-0 pl-1">(${percent}%)</span>
         `;
         legendElem.appendChild(legendItem);
     });
@@ -1118,8 +1158,7 @@ function parseSheetDate(dateStr) {
             
             // USE NUMERIC SETTERS FOR MAXIMUM RELIABILITY
             // .month() is 0-indexed in dayjs
-            // MANUALLY SHIFTING +1 DAY as requested by user to fix the 1-day back shift
-            const d = dayjs().year(year).month(month - 1).date(day).startOf('day').add(1, 'day');
+            const d = dayjs().year(year).month(month - 1).date(day).startOf('day');
             
             if (d.isValid()) return d.toDate();
         }
@@ -1206,4 +1245,365 @@ async function updateDashboardTotals(expenses, refMonth, refYear) {
         console.error("Error in updateDashboardTotals:", err);
     }
 }
+
+/**
+ * Render Monthly Fixed Costs in Dashboard Widget
+ */
+function renderMonthlyFixedCosts(expenses, fixedCosts, refMonth, refYear) {
+    const container = document.getElementById('monthlyFixedCostList');
+    const subtext = document.getElementById('monthlyFixedCostSubtext');
+    if (!container) return;
+
+    if (!Array.isArray(fixedCosts) || fixedCosts.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-28 text-slate-500 font-medium text-xs">
+                <i class="fa-solid fa-calendar-check text-2xl mb-1.5 opacity-30"></i>
+                <p>ยังไม่มีรายการ Fixed Cost</p>
+                <a href="fixed-cost.html" class="text-mint hover:underline text-[11px] mt-1">คลิกที่นี่เพื่อเพิ่มรายการ</a>
+            </div>
+        `;
+        if (subtext) subtext.textContent = 'ยังไม่มีข้อมูล';
+        return;
+    }
+
+    const today = new Date();
+    const currentM = refMonth || today.getMonth() + 1;
+    const currentY = refYear || today.getFullYear();
+    const isCurrentMonth = (today.getFullYear() === currentY && (today.getMonth() + 1) === currentM);
+    const isPastMonth = (today.getFullYear() > currentY || (today.getFullYear() === currentY && (today.getMonth() + 1) > currentM));
+
+    let paidCount = 0;
+    let totalEligibleCount = 0;
+
+    const processedItems = [];
+
+    fixedCosts.forEach(item => {
+        // 1. Check end_date expiration
+        if (item.end_date) {
+            const endD = parseSheetDate(item.end_date);
+            if (endD) {
+                const endYear = endD.getFullYear();
+                const endMonth = endD.getMonth() + 1;
+                if (currentY > endYear || (currentY === endYear && currentM > endMonth)) {
+                    return; // Expired, skip
+                }
+            }
+        }
+
+        // 2. Cumulative payments across ALL time for progress bar
+        const tag = `[Fixed Cost: ${item.name}]`;
+        let totalCumulativePaid = 0;
+        let paidThisMonth = false;
+        let paidAmountThisMonth = 0;
+
+        expenses.forEach(exp => {
+            const noteStr = (exp.note || '').toString();
+            if (noteStr.includes(tag)) {
+                const amt = Math.abs(parseFloat(exp.amount) || 0);
+                totalCumulativePaid += amt;
+
+                const d = parseSheetDate(exp.date);
+                if (d && d.getFullYear() === currentY && (d.getMonth() + 1) === currentM) {
+                    paidThisMonth = true;
+                    paidAmountThisMonth += amt;
+                }
+            }
+        });
+
+        const targetAmount = parseFloat(item.target_amount) || 0;
+        const isFullyCompleted = targetAmount > 0 && totalCumulativePaid >= targetAmount;
+
+        // หากเต็มแล้วจะไม่มาแสดงให้เราเลือกจ่ายอีก
+        if (isFullyCompleted) {
+            return;
+        }
+
+        totalEligibleCount++;
+        if (paidThisMonth) {
+            paidCount++;
+        }
+
+        // 3. Overdue calculation
+        const dueDay = parseInt(item.due_day, 10) || 1;
+        let isOverdue = false;
+        if (!paidThisMonth) {
+            if (isCurrentMonth) {
+                if (today.getDate() > dueDay) {
+                    isOverdue = true;
+                }
+            } else if (isPastMonth) {
+                isOverdue = true;
+            }
+        }
+
+        const remainingAmount = targetAmount > 0 ? Math.max(0, targetAmount - totalCumulativePaid) : 0;
+        const progressPercent = targetAmount > 0 ? Math.min(100, Math.round((totalCumulativePaid / targetAmount) * 100)) : 0;
+
+        processedItems.push({
+            item,
+            dueDay,
+            paidThisMonth,
+            paidAmountThisMonth,
+            isOverdue,
+            targetAmount,
+            totalCumulativePaid,
+            remainingAmount,
+            progressPercent
+        });
+    });
+
+    if (subtext) {
+        subtext.textContent = `ชำระแล้ว ${paidCount}/${totalEligibleCount} รายการ`;
+    }
+
+    if (processedItems.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-28 text-slate-500 font-medium text-xs">
+                <i class="fa-solid fa-circle-check text-2xl text-mint mb-1.5 opacity-60"></i>
+                <p class="text-white font-bold">ไม่มีรายการที่ต้องจ่ายในเดือนนี้</p>
+                <span class="text-[10px] text-slate-400">รายการทั้งหมดอาจชำระครบถ้วนแล้ว</span>
+            </div>
+        `;
+        return;
+    }
+
+    // Sort: unpaid overdue first, unpaid normal next, paid last
+    processedItems.sort((a, b) => {
+        if (a.paidThisMonth !== b.paidThisMonth) return a.paidThisMonth ? 1 : -1;
+        if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
+        return a.dueDay - b.dueDay;
+    });
+
+    container.innerHTML = processedItems.map(p => {
+        const item = p.item;
+        return `
+            <div class="p-2.5 sm:p-3 rounded-2xl border transition-all duration-200 flex flex-col gap-2 ${
+                p.paidThisMonth 
+                    ? 'bg-surface-0/40 border-mint/20 opacity-80' 
+                    : (p.isOverdue 
+                        ? 'bg-coral/10 border-coral/50 shadow-[0_0_12px_rgba(251,113,133,0.15)]' 
+                        : 'bg-surface-0/70 border-slate-border/70 hover:border-mint/30')
+            }">
+                
+                <!-- Row 1: Header (Title, Due day, Status badge) -->
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-xs font-extrabold text-white truncate">${item.name}</span>
+                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-surface-2 text-slate-300 border border-slate-border/50">
+                                ${item.type || 'ทั่วไป'}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                            <span class="text-slate-300 font-medium flex items-center gap-1">
+                                <i class="fa-regular fa-credit-card text-[9px] text-mint"></i> ${item.card || 'ไม่ระบุบัตร'}
+                            </span>
+                            <span>•</span>
+                            <span>ครบวันที่ ${p.dueDay}</span>
+                        </div>
+                    </div>
+
+                    <!-- Status Pill / Overdue Warning -->
+                    <div class="flex-shrink-0">
+                        ${p.paidThisMonth ? `
+                            <span class="text-[10px] font-bold text-mint bg-mint/15 border border-mint/30 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                <i class="fa-solid fa-check text-[9px]"></i> จ่ายแล้ว
+                            </span>
+                        ` : (p.isOverdue ? `
+                            <span class="text-[10px] font-extrabold text-coral bg-coral-dim border border-coral/40 px-2 py-0.5 rounded-lg flex items-center gap-1 animate-pulse">
+                                <i class="fa-solid fa-circle-exclamation text-[9px]"></i> เลยกำหนด
+                            </span>
+                        ` : `
+                            <span class="text-[10px] font-semibold text-slate-400 bg-surface-2 px-2 py-0.5 rounded-lg border border-slate-border/50">
+                                รอชำระ
+                            </span>
+                        `)}
+                    </div>
+                </div>
+
+                <!-- Row 2: Progress Bar (If Target Amount exists) -->
+                ${p.targetAmount > 0 ? `
+                    <div class="bg-surface-1/60 p-2 rounded-xl border border-slate-border/40 flex flex-col gap-1">
+                        <div class="flex items-center justify-between text-[10px]">
+                            <span class="text-slate-400 font-medium">ผ่อนแล้ว ${p.progressPercent}%</span>
+                            <span class="text-white font-bold tabular-numbers">
+                                ขาดอีก <strong class="text-coral">฿${p.remainingAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</strong>
+                            </span>
+                        </div>
+                        <div class="w-full bg-surface-2 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-mint to-mint-light rounded-full transition-all duration-300"
+                                style="width: ${p.progressPercent}%;"></div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Row 3: Action Button -->
+                <div class="flex items-center justify-between pt-1 border-t border-surface-3/40">
+                    <span class="text-[10px] text-slate-400">
+                        ${p.paidThisMonth ? `ยอดจ่าย: ฿${p.paidAmountThisMonth.toLocaleString('th-TH', { minimumFractionDigits: 2 })}` : (p.targetAmount > 0 ? `เป้าหมาย: ฿${p.targetAmount.toLocaleString('th-TH')}` : 'ยอดตามจริง')}
+                    </span>
+
+                    ${p.paidThisMonth ? `
+                        <button type="button" disabled
+                            class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-surface-2 text-slate-500 border border-slate-border/50 cursor-not-allowed flex items-center gap-1">
+                            <i class="fa-solid fa-check"></i> ชำระเรียบร้อย
+                        </button>
+                    ` : `
+                        <button type="button" onclick="window.openPayFixedCostModal('${item.id || ''}', '${item.name}', '${item.card || ''}', ${p.dueDay}, ${p.targetAmount || 0}, ${p.remainingAmount || 0})"
+                            class="px-3 py-1 rounded-lg text-[10px] font-extrabold ${p.isOverdue ? 'bg-coral text-white hover:bg-coral-light shadow-glow-coral' : 'bg-mint text-void hover:bg-mint-light shadow-glow-mint'} transition active:scale-95 cursor-pointer flex items-center gap-1">
+                            <i class="fa-solid fa-money-bill-wave"></i> ชำระเงิน
+                        </button>
+                    `}
+                </div>
+
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Initialize Quick Pay Modal for Fixed Costs
+ */
+function initPayFixedCostModal() {
+    const modal = document.getElementById('payFixedCostModal');
+    const closeBtn = document.getElementById('closePayFcModal');
+    const confirmBtn = document.getElementById('confirmPayFcBtn');
+    const amountInput = document.getElementById('payFcAmount');
+    const dateInput = document.getElementById('payFcDate');
+    const cardSelect = document.getElementById('payFcCard');
+    const noteInput = document.getElementById('payFcNote');
+    const infoBox = document.getElementById('payFcInfoBox');
+    const titleElem = document.getElementById('payFcModalTitle');
+
+    if (!modal || !closeBtn || !confirmBtn) return;
+
+    const toggleModal = (show) => {
+        if (show) {
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.firstElementChild?.classList.remove('translate-y-8');
+        } else {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.firstElementChild?.classList.add('translate-y-8');
+        }
+    };
+
+    closeBtn.addEventListener('click', () => toggleModal(false));
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) toggleModal(false);
+    });
+
+    // Expose open modal globally
+    window.openPayFixedCostModal = (id, name, card, dueDay, targetAmount, remainingAmount) => {
+        const idElem = document.getElementById('payFcItemId');
+        const nameElem = document.getElementById('payFcItemName');
+        if (idElem) idElem.value = id;
+        if (nameElem) nameElem.value = name;
+
+        if (titleElem) titleElem.textContent = `ชำระ ${name}`;
+
+        if (infoBox) {
+            infoBox.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">บัตรที่ผูก:</span>
+                    <span class="text-white font-bold">${card || '-'}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">วันครบกำหนด:</span>
+                    <span class="text-white font-bold">ทุกวันที่ ${dueDay} ของเดือน</span>
+                </div>
+                ${targetAmount > 0 ? `
+                    <div class="flex items-center justify-between pt-1 border-t border-surface-3/50 text-[11px]">
+                        <span class="text-slate-400">ยอดคงเหลือที่ต้องผ่อน:</span>
+                        <span class="text-coral font-bold tabular-numbers">฿${parseFloat(remainingAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        if (dateInput) {
+            dateInput.value = dayjs().format('YYYY-MM-DD');
+        }
+        if (cardSelect && card) {
+            cardSelect.value = card;
+        }
+        if (amountInput) {
+            amountInput.value = '';
+            setTimeout(() => amountInput.focus(), 150);
+        }
+        if (noteInput) {
+            noteInput.value = `[Fixed Cost: ${name}]`;
+        }
+
+        toggleModal(true);
+    };
+
+    // Confirm Payment
+    confirmBtn.addEventListener('click', async () => {
+        const amount = parseFloat(amountInput.value);
+        const dateVal = dateInput.value;
+        const cardVal = cardSelect.value;
+        const noteVal = noteInput.value.trim();
+        const itemName = document.getElementById('payFcItemName').value;
+
+        if (!amount || isNaN(amount) || amount <= 0) {
+            showToast("กรุณาระบุจำนวนเงินที่ถูกต้อง", "error");
+            return;
+        }
+        if (!cardVal) {
+            showToast("กรุณาเลือกบัตร", "error");
+            return;
+        }
+
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> กำลังบันทึก...';
+
+        try {
+            const d = dayjs(dateVal);
+            const formattedDate = `${String(d.date()).padStart(2, '0')}/${String(d.month() + 1).padStart(2, '0')}/${d.year() + 543}`;
+
+            // Ensure note has [Fixed Cost: Name] tag
+            let finalNote = noteVal;
+            const requiredTag = `[Fixed Cost: ${itemName}]`;
+            if (!finalNote.includes(requiredTag)) {
+                finalNote = `${requiredTag} ${finalNote}`.trim();
+            }
+
+            const data = {
+                date: formattedDate,
+                amount: amount,
+                card: cardVal,
+                category: 'Fixed Cost',
+                note: finalNote
+            };
+
+            await postExpense(data);
+
+            showToast("บันทึกการชำระ Fixed Cost เรียบร้อยแล้ว!");
+            toggleModal(false);
+
+            // Refresh Dashboard
+            const freshExpenses = await fetchExpenses();
+            allExpensesCache = freshExpenses;
+            const currentMonthVal = document.getElementById('globalMonthSelect')?.value;
+            if (currentMonthVal) {
+                refreshDashboard(freshExpenses, currentMonthVal);
+            } else {
+                updateDashboardTotals(freshExpenses);
+                renderTransactionHistory(freshExpenses);
+                updateCategorySpending(freshExpenses);
+                updateMonthlyInsights(freshExpenses);
+                const [y, m] = (document.getElementById('globalMonthSelect')?.value || `${new Date().getFullYear()}-${new Date().getMonth()+1}`).split('-').map(Number);
+                renderMonthlyFixedCosts(freshExpenses, allFixedCostsCache, m, y);
+            }
+
+        } catch (err) {
+            console.error("Error posting fixed cost payment:", err);
+            showToast("เกิดข้อผิดพลาดในการบันทึก", "error");
+        } finally {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>ยืนยันบันทึกการชำระเงิน</span>';
+        }
+    });
+}
+
 

@@ -16,10 +16,11 @@ const DEFAULT_CONFIG = {
   google_sheets: {
     script_url: '',
     sheets: {
-      expenses: 'Expenses',
+      expenses: 'Data',
       cards: 'Cards',
       categories: 'Categories',
-      users: 'Users'
+      users: 'Users',
+      fixed_costs: 'FixedCosts'
     }
   },
   cache: {
@@ -28,6 +29,7 @@ const DEFAULT_CONFIG = {
       expenses: 'cardwise_cache_expenses',
       cards: 'cardwise_cache_cards',
       categories: 'cardwise_cache_categories',
+      fixed_costs: 'cardwise_cache_fixed_costs',
       last_sync: 'cardwise_last_sync_time'
     }
   }
