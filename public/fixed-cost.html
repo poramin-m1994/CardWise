@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <link rel="icon" type="image/png" href="./images/favicon.png" />
+  <title>CardWise | จัดการ Fixed Cost & ยอดผ่อนชำระ</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            void: '#060a14',
+            surface: {
+              0: '#070d1a',
+              1: '#0e172a',
+              2: '#142038',
+              3: '#1b2a47',
+              4: '#24375b',
+            },
+            mint: {
+              DEFAULT: '#34d399',
+              light: '#6ee7b7',
+              hover: '#10b981',
+              dark: '#059669',
+              glow: 'rgba(52, 211, 153, 0.25)',
+              dim: 'rgba(52, 211, 153, 0.08)'
+            },
+            coral: {
+              DEFAULT: '#fb7185',
+              light: '#fda4af',
+              dim: 'rgba(251, 113, 133, 0.12)'
+            },
+            slate: {
+              900: '#070d1a',
+              800: '#0e172a',
+              700: '#1b2a47',
+              600: '#24375b',
+              border: 'rgba(148, 163, 184, 0.12)'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '"Prompt"', 'sans-serif'],
+            mono: ['"SF Mono"', 'Consolas', '"Plus Jakarta Sans"', 'monospace']
+          },
+          boxShadow: {
+            'glow-mint': '0 0 25px -4px rgba(52, 211, 153, 0.35)',
+            'card-elevated': '0 20px 40px -15px rgba(2, 6, 16, 0.65)',
+            'popover': '0 25px 50px -12px rgba(0, 0, 0, 0.75)'
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="./styles/global.css" />
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(7, 13, 26, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1b2a47;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #34d399;
+    }
+
+    .glass-nav {
+      background: rgba(14, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .glass-card {
+      background: linear-gradient(145deg, rgba(17, 28, 51, 0.85) 0%, rgba(11, 19, 36, 0.95) 100%);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .glass-card-hover {
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card-hover:hover {
+      border-color: rgba(52, 211, 153, 0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.5), 0 0 20px -8px rgba(52, 211, 153, 0.15);
+    }
+
+    .luminous-pill {
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      color: #34d399;
+    }
+
+    .tabular-numbers {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+
+<body class="bg-void text-slate-200 min-h-screen flex flex-col font-sans selection:bg-mint selection:text-void overflow-x-hidden antialiased relative">
+
+  <!-- Ambient Glow Gradients in Background -->
+  <div class="fixed top-0 left-1/4 w-96 h-96 bg-mint/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
+  <div class="fixed bottom-10 right-1/4 w-[28rem] h-[28rem] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
+
+  <!-- Header / Navigation Bar -->
+  <header class="sticky top-0 z-40 glass-nav transition-all duration-200">
+    <div class="max-w-[1500px] mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="landing.html" class="flex items-center gap-3 group focus:outline-none">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-mint-dark via-mint to-mint-light flex items-center justify-center text-void shadow-glow-mint transition-transform duration-300 group-hover:scale-105">
+          <i class="fa-solid fa-credit-card text-base font-bold"></i>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-xl font-extrabold tracking-tight text-white leading-none">Card<span class="text-mint">Wise.</span></span>
+          <span class="text-[9px] font-bold tracking-widest text-slate-400 uppercase mt-0.5">Financial Ledger</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav & Actions -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        <!-- Navigation Links -->
+        <nav class="hidden md:flex items-center bg-surface-2/60 p-1 rounded-2xl border border-slate-border">
+          <a href="landing.html" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-surface-3/80 transition-all duration-200">
+            <i class="fa-solid fa-layer-group mr-1.5 text-[11px]"></i>แดชบอร์ด
+          </a>
+          <a href="manage.html" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-surface-3/80 transition-all duration-200">
+            <i class="fa-solid fa-sliders mr-1.5 text-[11px]"></i>หมวดหมู่ & บัตร
+          </a>
+          <a href="fixed-cost.html" class="px-4 py-2 rounded-xl text-xs font-bold text-void bg-mint shadow-sm transition-all duration-200">
+            <i class="fa-solid fa-calendar-check mr-1.5 text-[11px]"></i>Fixed Cost
+          </a>
+        </nav>
+
+        <div class="hidden sm:block w-px h-6 bg-slate-border/80"></div>
+
+        <!-- Notification & Logout -->
+        <div class="flex items-center gap-2">
+          <button type="button" class="w-9 h-9 rounded-xl bg-surface-2 hover:bg-surface-3 text-slate-300 hover:text-white flex items-center justify-center transition border border-slate-border focus:outline-none" title="การแจ้งเตือน">
+            <i class="fa-regular fa-bell text-xs"></i>
+          </button>
+
+          <button onclick="logout()" class="px-3.5 py-2 rounded-xl bg-surface-2 hover:bg-red-500/15 text-slate-300 hover:text-red-400 text-xs font-bold transition flex items-center gap-1.5 border border-slate-border focus:outline-none">
+            <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+            <span class="hidden sm:inline">ออกจากระบบ</span>
+          </button>
+
+          <!-- Hidden compatibility elements -->
+          <button id="themeLabel" class="hidden">ToggleTheme</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Bottom Sub-Nav -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-30 glass-nav border-t border-slate-border px-4 py-2.5 flex items-center justify-around">
+    <a href="landing.html" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white font-medium text-[10px]">
+      <i class="fa-solid fa-layer-group text-base"></i>
+      <span>แดชบอร์ด</span>
+    </a>
+    <a href="manage.html" class="flex flex-col items-center gap-1 text-slate-400 hover:text-white font-medium text-[10px]">
+      <i class="fa-solid fa-sliders text-base"></i>
+      <span>หมวดหมู่/บัตร</span>
+    </a>
+    <a href="fixed-cost.html" class="flex flex-col items-center gap-1 text-mint font-bold text-[10px]">
+      <i class="fa-solid fa-calendar-check text-base"></i>
+      <span>Fixed Cost</span>
+    </a>
+  </div>
+
+  <!-- Loading Screen Overlay -->
+  <div id="loadingOverlay"
+    class="fixed inset-0 bg-void/85 backdrop-blur-md flex flex-col items-center justify-center z-[2000] opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="w-12 h-12 border-4 border-mint/20 border-t-mint rounded-full animate-spin"></div>
+    <p class="mt-4 text-xs font-bold text-slate-300 tracking-widest uppercase">กำลังบันทึกและซิงค์ข้อมูล...</p>
+  </div>
+
+  <!-- Main Content -->
+  <main class="flex-grow p-4 sm:p-6 lg:p-8 pb-28 md:pb-12 max-w-[1500px] w-full mx-auto">
+    
+    <!-- Header Banner & Action Button -->
+    <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest luminous-pill">
+            <i class="fa-solid fa-repeat text-[10px]"></i>
+            Recurring Liabilities
+          </span>
+          <button id="syncFixedCostBtn" type="button" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-slate-400 hover:text-white bg-surface-2 hover:bg-surface-3 transition border border-slate-border/60 cursor-pointer" title="รีเฟรชข้อมูลสดจาก Google Sheets">
+            <i class="fa-solid fa-rotate text-[9px] text-mint transition-transform" id="syncIcon"></i>
+            <span>รีเฟรช</span>
+          </button>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">จัดการ Fixed Cost & ยอดผ่อนชำระ</h1>
+        <p class="text-xs text-slate-400 mt-1">บันทึกรายการค่าใช้จ่ายคงที่ ผูกกับบัตรเครดิต และติดตามความคืบหน้างวดผ่อนชำระ</p>
+      </div>
+
+      <!-- Add New Button (Triggers form or scrolls) -->
+      <button id="openAddModalBtn" type="button"
+        class="bg-gradient-to-r from-mint to-mint-hover hover:from-mint-light hover:to-mint text-void text-xs sm:text-sm font-extrabold px-5 py-3 rounded-2xl transition-all duration-200 shadow-glow-mint flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] self-start md:self-auto">
+        <i class="fa-solid fa-plus font-bold"></i>
+        <span>เพิ่ม Fixed Cost ใหม่</span>
+      </button>
+    </div>
+
+    <!-- Summary Stats Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      
+      <!-- Card 1: Total Items -->
+      <div class="glass-card p-4 rounded-2xl flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-surface-2 text-mint flex items-center justify-center text-lg border border-slate-border flex-shrink-0">
+          <i class="fa-solid fa-list-check"></i>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">รายการทั้งหมด</span>
+          <span id="statTotalCount" class="text-xl font-extrabold text-white tabular-numbers">0 รายการ</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Installment Count -->
+      <div class="glass-card p-4 rounded-2xl flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-surface-2 text-indigo-400 flex items-center justify-center text-lg border border-slate-border flex-shrink-0">
+          <i class="fa-solid fa-credit-card"></i>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ประเภทผ่อนชำระ</span>
+          <span id="statInstallmentCount" class="text-xl font-extrabold text-white tabular-numbers">0 รายการ</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Total Target Debt -->
+      <div class="glass-card p-4 rounded-2xl flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-surface-2 text-amber-400 flex items-center justify-center text-lg border border-slate-border flex-shrink-0">
+          <i class="fa-solid fa-coins"></i>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ยอดเป้าหมายรวมทั้งหมด</span>
+          <span id="statTotalTargetAmount" class="text-xl font-extrabold text-white tabular-numbers">฿0.00</span>
+        </div>
+      </div>
+
+      <!-- Card 4: Total Remaining Debt -->
+      <div class="glass-card p-4 rounded-2xl flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-surface-2 text-coral flex items-center justify-center text-lg border border-slate-border flex-shrink-0">
+          <i class="fa-solid fa-hourglass-half"></i>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ยอดที่ยังค้างผ่อน</span>
+          <span id="statRemainingDebt" class="text-xl font-extrabold text-white tabular-numbers">฿0.00</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Main Grid: Form (Desktop side) & List -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- LEFT: Add New Fixed Cost Form (Col 4) -->
+      <div class="lg:col-span-4 glass-card p-5 sm:p-6 rounded-3xl border border-slate-border">
+        <div class="flex items-center gap-2.5 pb-4 mb-5 border-b border-surface-3">
+          <div class="w-8 h-8 rounded-xl bg-mint/10 text-mint flex items-center justify-center text-xs">
+            <i class="fa-solid fa-plus font-bold"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-extrabold text-white">เพิ่มรายการ Fixed Cost</h2>
+            <p class="text-[11px] text-slate-400 font-medium">บันทึกค่าใช้จ่ายคงที่รอบบิลใหม่</p>
+          </div>
+        </div>
+
+        <form id="addFixedCostForm" class="flex flex-col gap-4">
+          
+          <!-- Name -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1.5">
+              ชื่อรายการ Fixed Cost <span class="text-coral">*</span>
+            </label>
+            <div class="bg-surface-0 rounded-xl px-3.5 py-2.5 border border-slate-border focus-within:border-mint transition flex items-center gap-2">
+              <i class="fa-solid fa-tag text-slate-400 text-xs"></i>
+              <input type="text" id="fcName" required placeholder="เช่น ค่าเน็ตบ้าน, ผ่อน iPhone 16"
+                class="bg-transparent border-none text-white text-xs font-semibold w-full outline-none p-0 placeholder-slate-500">
+            </div>
+          </div>
+
+          <!-- Card Selection (Loaded from Cards Sheet) -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1.5">
+              ผูกกับบัตรเครดิต / บัญชี <span class="text-coral">*</span>
+            </label>
+            <div class="bg-surface-0 rounded-xl px-3.5 py-2.5 border border-slate-border focus-within:border-mint transition flex items-center gap-2 relative">
+              <i class="fa-solid fa-credit-card text-slate-400 text-xs"></i>
+              <select id="fcCard" required class="bg-transparent border-none text-white text-xs font-semibold w-full outline-none p-0 appearance-none pr-6 cursor-pointer">
+                <option value="" class="bg-surface-1">กำลังโหลดข้อมูลบัตร...</option>
+              </select>
+              <i class="fa-solid fa-chevron-down text-slate-400 absolute right-3.5 pointer-events-none text-[9px]"></i>
+            </div>
+          </div>
+
+          <!-- Type Selection Grid -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1.5">
+              ประเภท Fixed Cost <span class="text-coral">*</span>
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-border bg-surface-0 cursor-pointer hover:border-mint/50 transition has-[:checked]:border-mint has-[:checked]:bg-mint/10">
+                <input type="radio" name="fcType" value="ทั่วไป" checked class="accent-mint">
+                <div class="flex flex-col">
+                  <span class="text-xs font-bold text-white">ทั่วไป</span>
+                  <span class="text-[10px] text-slate-400">ค่าน้ำ, ค่าเน็ต, ฟิตเนส</span>
+                </div>
+              </label>
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-border bg-surface-0 cursor-pointer hover:border-indigo-400/50 transition has-[:checked]:border-indigo-400 has-[:checked]:bg-indigo-500/10">
+                <input type="radio" name="fcType" value="ผ่อนบัตร" class="accent-indigo-400">
+                <div class="flex flex-col">
+                  <span class="text-xs font-bold text-white">ผ่อนบัตร</span>
+                  <span class="text-[10px] text-slate-400">ผ่อนของ 0%, 10 เดือน</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Due Day (1-31) -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1.5">
+              ต้องจ่ายทุกวันที่ (1 - 31) <span class="text-coral">*</span>
+            </label>
+            <div class="bg-surface-0 rounded-xl px-3.5 py-2.5 border border-slate-border focus-within:border-mint transition flex items-center gap-2">
+              <i class="fa-regular fa-calendar text-slate-400 text-xs"></i>
+              <input type="number" id="fcDueDay" required min="1" max="31" placeholder="ระบุวันที่ 1 - 31"
+                class="bg-transparent border-none text-white text-xs font-semibold w-full outline-none p-0 tabular-numbers placeholder-slate-500">
+            </div>
+            <span class="text-[10px] text-slate-400 mt-1 block">วันครบกำหนดชำระในแต่ละเดือน (ใช้คำนวณการแจ้งเตือนเลยกำหนด)</span>
+          </div>
+
+          <!-- Total Target Amount (Optional) -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+              <span>ยอดรวมเป้าหมาย (บาท)</span>
+              <span class="text-[10px] text-slate-400 font-normal">กรณีผ่อนชำระ</span>
+            </label>
+            <div class="bg-surface-0 rounded-xl px-3.5 py-2.5 border border-slate-border focus-within:border-mint transition flex items-center gap-2">
+              <span class="text-mint font-bold text-sm">฿</span>
+              <input type="number" id="fcTargetAmount" step="0.01" min="0" placeholder="เช่น 20000 (เว้นว่างถ้าเป็นรายจ่ายทั่วไป)"
+                class="bg-transparent border-none text-white text-xs font-semibold w-full outline-none p-0 tabular-numbers placeholder-slate-500">
+            </div>
+            <span class="text-[10px] text-slate-400 mt-1 block">หากระบุ จะมีหลอด Progress Bar คำนวณยอดที่จ่ายไปแล้วอัตโนมัติ</span>
+          </div>
+
+          <!-- End Date (Optional) -->
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+              <span>วันที่สิ้นสุดสัญญา (ถ้ามี)</span>
+              <span class="text-[10px] text-slate-400 font-normal">ไม่บังคับ</span>
+            </label>
+            <div class="bg-surface-0 rounded-xl px-3.5 py-2.5 border border-slate-border focus-within:border-mint transition flex items-center gap-2">
+              <i class="fa-regular fa-calendar-xmark text-slate-400 text-xs"></i>
+              <input type="date" id="fcEndDate"
+                class="bg-transparent border-none text-white text-xs font-semibold w-full outline-none p-0 cursor-pointer">
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="submitFcBtn"
+            class="mt-2 w-full bg-gradient-to-r from-mint to-mint-hover hover:from-mint-light hover:to-mint text-void font-extrabold text-xs sm:text-sm py-3.5 rounded-xl transition-all duration-200 shadow-glow-mint active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2">
+            <i class="fa-solid fa-check"></i>
+            <span>บันทึกรายการ Fixed Cost</span>
+          </button>
+
+        </form>
+      </div>
+
+      <!-- RIGHT: Existing Fixed Costs List (Col 8) -->
+      <div class="lg:col-span-8 flex flex-col gap-4">
+        
+        <!-- Filter Tabs & Count -->
+        <div class="glass-card p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <button type="button" data-filter="all" class="fc-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-mint text-void shadow-sm transition">
+              ทั้งหมด (<span id="countFilterAll">0</span>)
+            </button>
+            <button type="button" data-filter="ทั่วไป" class="fc-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-surface-2 transition">
+              ทั่วไป (<span id="countFilterGeneral">0</span>)
+            </button>
+            <button type="button" data-filter="ผ่อนบัตร" class="fc-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-surface-2 transition">
+              ผ่อนบัตร (<span id="countFilterInstallment">0</span>)
+            </button>
+          </div>
+
+          <!-- Quick Search -->
+          <div class="relative w-full sm:w-56">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" id="fcSearchInput" placeholder="ค้นหา Fixed Cost..."
+              class="w-full bg-surface-2 border border-slate-border text-white text-xs rounded-xl py-1.5 pl-8 pr-3 focus:border-mint outline-none transition placeholder-slate-500">
+          </div>
+        </div>
+
+        <!-- Items Container -->
+        <div id="fixedCostListContainer" class="flex flex-col gap-3 min-h-[300px]">
+          <!-- Rendered dynamically -->
+          <div class="flex flex-col items-center justify-center py-16 text-slate-400 font-medium text-xs">
+            <i class="fa-solid fa-spinner fa-spin text-2xl text-mint mb-3"></i>
+            <span>กำลังโหลดรายการ Fixed Cost...</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Toast Notification Pill -->
+  <div id="toast"
+    class="fixed top-6 left-1/2 -translate-x-1/2 bg-surface-1/90 backdrop-blur-xl border border-slate-border text-white px-5 py-3 rounded-2xl shadow-popover transition-all duration-300 flex items-center gap-3 z-[2500] opacity-0 -translate-y-10 border-l-4 border-l-mint pointer-events-none">
+    <i class="fa-solid fa-circle-check text-mint text-base" id="toastIcon"></i>
+    <span id="toastMessage" class="text-xs font-bold text-white">บันทึกสำเร็จ!</span>
+  </div>
+
+  <!-- JavaScript Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script type="module" src="js/fixed-cost.js?v=1.0.2"></script>
+
+</body>
+
+</html>
